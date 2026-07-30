@@ -37,7 +37,7 @@ It combines:
    ```
 3. Clone or pull this repo into that folder:
    ```bash
-   git clone https://github.com/SouRyan/SpoTUI SpoTUI
+   git clone https://github.com/SouRyan/SpoTUI-By-SouRyan SpoTUI
    ```
    If you already have it locally, update it instead:
    ```bash
@@ -65,7 +65,7 @@ It combines:
    ```
 3. Clone or pull this repo into that folder:
    ```powershell
-   git clone https://github.com/SouRyan/SpoTUI SpoTUI
+   git clone https://github.com/SouRyan/SpoTUI-By-SouRyan SpoTUI
    ```
    If you already have it locally, update it instead:
    ```powershell
@@ -191,5 +191,5 @@ Marketplace) and an entry in `SPOTUI_SCHEMES` in `theme.js` (for the `theme` com
 
 ## Authors
 
-- SouRyan - https://github.com/SouRyan (this fork)
+- SouRyan - https://github.com/SouRyan
 - SkenS - https://github.com/SkenSMasteR (original)
