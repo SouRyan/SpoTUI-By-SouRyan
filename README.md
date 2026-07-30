@@ -115,7 +115,7 @@ your command history, and `help` to open the command list in-app.
 
 | Command | Description |
 | --- | --- |
-| `search <terms>` | search tracks in a popup; no terms opens the Spotify search |
+| `search <terms>` / `s <terms>` | search tracks in a popup; no terms opens the Spotify search |
 | `add <terms>` | queue the top search result |
 | `playlist` | browse your playlists |
 | `list` | tracks of the playlist currently playing |

@@ -1299,7 +1299,7 @@ async function execute(cmd) {
         return;
     }
 
-    if (command === "search") {
+    if (command === "search" || command === "s") {
         if (argText) {
             await openSearchPopup(argText);
             return;
@@ -1440,7 +1440,7 @@ const HELP_CATEGORIES = [
         id: "library",
         label: "Library",
         entries: [
-            ["search <terms>", "search tracks (no terms opens Spotify search)"],
+            ["search | s <terms>", "search tracks (no terms opens Spotify search)", "search", "s"],
             ["add <terms>", "queue the top search result"],
             ["playlist", "browse your playlists"],
             ["list", "tracks of the playing playlist"],
@@ -1535,7 +1535,16 @@ function getTrackArtist(track) {
     const meta = track?.metadata || track?.contextTrack?.metadata || {};
     if (track?.artist) return track.artist;
     if (Array.isArray(track?.artists) && track.artists.length) {
-        return track.artists.map((artist) => artist?.name).filter(Boolean).join(", ");
+        return track.artists
+            .map((artist) => artist?.profile?.name || artist?.name)
+            .filter(Boolean)
+            .join(", ");
+    }
+    if (Array.isArray(track?.artists?.items) && track.artists.items.length) {
+        return track.artists.items
+            .map((artist) => artist?.profile?.name || artist?.name)
+            .filter(Boolean)
+            .join(", ");
     }
     if (meta.artist_name) return meta.artist_name;
     if (meta["artist_name:1"]) return meta["artist_name:1"];
@@ -1573,10 +1582,223 @@ function getCurrentPlaylistContextUri() {
     return lastPlaylistContextUri;
 }
 
+function getSearchVariables(query, limit) {
+    return {
+        searchTerm: query,
+        query,
+        offset: 0,
+        limit,
+        numberOfTopResults: Math.min(limit, 20),
+        includeAudiobooks: false,
+        includeArtistHasConcertsField: false,
+        includeLocalConcertsField: false,
+        includePreReleases: false,
+        includeAlbumPreReleases: false,
+        includeAuthors: false,
+        includeEpisodeContentRatingsV2: false,
+        isPrefix: false,
+        sectionFilters: [],
+    };
+}
+
+function unwrapSearchTrack(entry) {
+    if (!entry) return null;
+    // GraphQL searchTracks nests as items[].item.data; some mappers flatten earlier.
+    const data =
+        entry?.item?.data ||
+        entry?.item ||
+        entry?.data ||
+        entry?.track ||
+        entry?.contextTrack ||
+        entry;
+    if (!data || typeof data !== "object") return null;
+    if (data.__typename && data.__typename !== "Track" && !data.uri?.includes(":track:")) {
+        return null;
+    }
+    return data;
+}
+
+function extractTracksFromSearchPayload(payload) {
+    if (!payload) return [];
+
+    if (Array.isArray(payload)) {
+        return payload.map(unwrapSearchTrack).filter(Boolean);
+    }
+
+    const root = payload.data || payload;
+    if (Array.isArray(root?.tracks?.items)) {
+        return root.tracks.items.map(unwrapSearchTrack).filter(Boolean);
+    }
+
+    const search = root.searchV2 || root.search || root;
+    const buckets = [
+        search?.tracksV2,
+        search?.tracks,
+        root?.tracksV2,
+        root?.tracks,
+        search?.topResultsV2,
+        search?.topResults,
+    ];
+
+    const out = [];
+    for (const bucket of buckets) {
+        const items = bucket?.items || bucket?.itemsV2 || bucket?.edges || [];
+        for (const entry of items) {
+            const track = unwrapSearchTrack(entry?.node || entry);
+            if (track?.uri && String(track.uri).includes(":track:")) out.push(track);
+        }
+        if (out.length) break;
+    }
+
+    return out;
+}
+
+function normalizeSearchTrack(track, index = 0) {
+    const base = normalizeTrackItem(track, index);
+    if (base.artist) return base;
+
+    // GraphQL artists live under artists.items[].profile.name
+    const artists = track?.artists?.items || track?.artists || [];
+    const names = (Array.isArray(artists) ? artists : [])
+        .map((artist) => artist?.profile?.name || artist?.name)
+        .filter(Boolean);
+
+    return {
+        ...base,
+        artist: names.join(", "),
+    };
+}
+
+// Search route modules register GraphQL defs lazily; a silent visit primes them.
+async function ensureSearchDefinitions(timeoutMs = 2500) {
+    const defs = Spicetify.GraphQL?.Definitions;
+    if (!defs) return false;
+    if (defs.searchTracks || defs.searchDesktop || defs.searchModalResults) return true;
+
+    const history = Spicetify.Platform?.History;
+    if (!history?.push) return false;
+
+    const previous = history.location
+        ? {
+            pathname: history.location.pathname,
+            search: history.location.search || "",
+            hash: history.location.hash || "",
+            state: history.location.state,
+        }
+        : null;
+
+    try {
+        history.push("/search");
+        const started = Date.now();
+        while (Date.now() - started < timeoutMs) {
+            if (defs.searchTracks || defs.searchDesktop || defs.searchModalResults) {
+                return true;
+            }
+            await new Promise((resolve) => setTimeout(resolve, 100));
+        }
+    } catch (err) {
+        console.warn("SpoTUI could not prime search definitions:", err);
+    } finally {
+        try {
+            if (previous) history.replace(previous);
+            else if (history.goBack) history.goBack();
+        } catch {
+            // Leave the user on search rather than throwing out of the command.
+        }
+    }
+
+    return Boolean(defs.searchTracks || defs.searchDesktop || defs.searchModalResults);
+}
+
+async function searchViaGraphQL(query, limit) {
+    const request = Spicetify.GraphQL?.Request;
+    const defs = Spicetify.GraphQL?.Definitions;
+    if (!request || !defs) return null;
+
+    await ensureSearchDefinitions();
+
+    const variables = getSearchVariables(query, limit);
+    const candidates = ["searchTracks", "searchDesktop", "searchModalResults"];
+    let lastError = null;
+
+    for (const name of candidates) {
+        const definition = defs[name];
+        if (!definition) continue;
+        try {
+            const res = await request(definition, variables);
+            if (res?.errors?.length) {
+                lastError = new Error(res.errors[0]?.message || `${name} GraphQL error`);
+                continue;
+            }
+            return extractTracksFromSearchPayload(res);
+        } catch (err) {
+            lastError = err;
+            console.warn(`SpoTUI GraphQL ${name} failed:`, err);
+        }
+    }
+
+    if (lastError) throw lastError;
+    return null;
+}
+
+async function searchViaWebApi(query, limit) {
+    const url =
+        `https://api.spotify.com/v1/search?q=${encodeURIComponent(query)}` +
+        `&type=track&limit=${limit}`;
+
+    let cosmosError = null;
+    if (Spicetify.CosmosAsync?.get) {
+        try {
+            const res = await Spicetify.CosmosAsync.get(url);
+            if (res?.error) {
+                throw new Error(res.error.message || res.error.status || "Web API error");
+            }
+            if (res?.tracks) return res.tracks.items || [];
+        } catch (err) {
+            cosmosError = err;
+            console.warn("SpoTUI CosmosAsync search failed:", err);
+        }
+    }
+
+    const token = Spicetify.Platform?.Session?.accessToken;
+    if (!token) {
+        if (cosmosError) throw cosmosError;
+        return null;
+    }
+
+    const res = await fetch(url, {
+        headers: { Authorization: `Bearer ${token}` },
+    });
+    if (!res.ok) {
+        throw new Error(`Web API ${res.status}`);
+    }
+    const body = await res.json();
+    return body?.tracks?.items || [];
+}
+
 async function searchTracks(query, limit = SEARCH_RESULT_LIMIT) {
-    const url = `https://api.spotify.com/v1/search?q=${encodeURIComponent(query)}&type=track&limit=${limit}`;
-    const res = await Spicetify.CosmosAsync.get(url);
-    return dedupeTracks((res?.tracks?.items || []).map((track, index) => normalizeTrackItem(track, index)));
+    const errors = [];
+
+    try {
+        const graphqlTracks = await searchViaGraphQL(query, limit);
+        if (graphqlTracks) {
+            return dedupeTracks(graphqlTracks.map((track, index) => normalizeSearchTrack(track, index)));
+        }
+    } catch (err) {
+        errors.push(err);
+    }
+
+    try {
+        const webTracks = await searchViaWebApi(query, limit);
+        if (webTracks) {
+            return dedupeTracks(webTracks.map((track, index) => normalizeSearchTrack(track, index)));
+        }
+    } catch (err) {
+        errors.push(err);
+    }
+
+    const detail = errors.map((err) => err?.message || String(err)).filter(Boolean).join("; ");
+    throw new Error(detail || "No working search backend available");
 }
 
 async function openSearchPopup(query) {
