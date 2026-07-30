@@ -1,6 +1,21 @@
 (function () {
 
 const style = `
+:root {
+    --spotui-accent: #ff8c42;
+    --spotui-accent-rgb: 255, 140, 66;
+    --spotui-accent-hover: #e07b39;
+    --spotui-accent-light: #ffb26f;
+    --spotui-contrast: #000;
+    --spotui-bg: var(--spice-main, #0a0a0a);
+    --spotui-surface: var(--spice-card, #111111);
+    --spotui-text: var(--spice-text, #dddddd);
+    --spotui-muted: var(--spice-subtext, #b3b3b3);
+    --spotui-dim: #777777;
+    --spotui-error: var(--spice-notification-error, #ff5555);
+    --spotui-divider: var(--spice-button-disabled, #333333);
+}
+
 #spotui-tui {
     position: fixed;
     top: 0;
@@ -8,8 +23,8 @@ const style = `
     right: 0;
     bottom: 90px;
     width: 100vw;
-    background: #000;
-    color: #ddd;
+    background: var(--spotui-bg);
+    color: var(--spotui-text);
     font-family: "JetBrains Mono", "Fira Code", monospace;
     font-size: 15px;
     padding: 40px;
@@ -22,12 +37,29 @@ const style = `
     cursor: text;
 }
 
+#spotui-backdrop {
+    position: absolute;
+    inset: 0;
+    background-position: center;
+    background-repeat: no-repeat;
+    background-size: cover;
+    opacity: 0;
+    z-index: 0;
+    pointer-events: none;
+    transition: opacity 300ms ease;
+}
+
+/* Only paints on the logo screen; the log needs the plain background to stay readable. */
+body.spotui-command-mode #spotui-backdrop.visible {
+    opacity: var(--spotui-backdrop-opacity, 0.35);
+}
+
 #spotui-logo {
     position: absolute;
     left: 50%;
     top: 41%;
     transform: translate(-50%, -50%);
-    color: #ff8c42;
+    color: var(--spotui-accent);
     opacity: 1;
     white-space: pre;
     text-align: center;
@@ -125,13 +157,33 @@ body.spotui-cli-mode #spotui-output {
     height: 0;
 }
 
+#spotui-status {
+    min-height: 20px;
+    padding: 2px 0;
+    color: var(--spotui-muted);
+    font-size: 13px;
+    white-space: pre-wrap;
+    position: relative;
+    z-index: 1;
+    opacity: 0;
+    transition: opacity 200ms ease;
+}
+
+#spotui-status.visible {
+    opacity: 1;
+}
+
+#spotui-status.error {
+    color: var(--spotui-error);
+}
+
 #spotui-footer {
     display: flex;
     align-items: center;
     gap: 12px;
     padding-top: 12px;
     margin-top: auto;
-    border-top: 1px solid rgba(255, 140, 66, 0.18);
+    border-top: 1px solid rgba(var(--spotui-accent-rgb), 0.18);
     position: relative;
     z-index: 1;
     transition: opacity 260ms ease, transform 260ms ease;
@@ -141,17 +193,15 @@ body.spotui-cli-mode #spotui-output {
     background: transparent;
     border: none;
     outline: none;
-    color: #ff8c42;
+    color: var(--spotui-accent);
     font-family: inherit;
     font-size: inherit;
     flex: 1 1 auto;
     min-width: 0;
 }
 
-.prompt { color: #ff8c42; }
-.cl-line, .result { margin-bottom: 8px; user-select: text; }
-.result { padding: 5px; }
-.selected { background: #ff8c42; color: #000; }
+.prompt { color: var(--spotui-accent); }
+.cl-line { margin-bottom: 8px; user-select: text; }
 
 #spotui-controls {
     display: flex;
@@ -161,8 +211,8 @@ body.spotui-cli-mode #spotui-output {
 }
 
 .spotui-control-btn {
-    background: #ff8c42;
-    color: #000;
+    background: var(--spotui-accent);
+    color: var(--spotui-contrast);
     border: none;
     padding: 6px 12px;
     font-family: "JetBrains Mono", monospace;
@@ -172,7 +222,7 @@ body.spotui-cli-mode #spotui-output {
 }
 
 .spotui-control-btn:hover {
-    background: #e07b39;
+    background: var(--spotui-accent-hover);
 }
 
 body.spotui-tui-hidden #spotui-tui {
@@ -190,10 +240,10 @@ body.spotui-tui-hidden #spotui-popup {
     transform: translate(-50%, -50%);
     width: min(480px, calc(100vw - 32px));
     max-height: 60vh;
-    background: #0a0a0a;
-    border: 2px solid #ff8c42;
+    background: var(--spotui-bg);
+    border: 2px solid var(--spotui-accent);
     border-radius: 6px;
-    color: #ddd;
+    color: var(--spotui-text);
     font-family: "JetBrains Mono", "Fira Code", monospace;
     font-size: 14px;
     z-index: 10002;
@@ -209,24 +259,39 @@ body.spotui-tui-hidden #spotui-popup {
     height: 0;
 }
 .popup-title {
-    color: #ff8c42;
+    color: var(--spotui-accent);
     margin-bottom: 10px;
     font-size: 12px;
-    border-bottom: 1px solid #333;
+    border-bottom: 1px solid var(--spotui-divider);
     padding-bottom: 8px;
 }
 .popup-row {
     padding: 4px 6px;
 }
 .popup-row.selected {
-    background: #ff8c42;
-    color: #000;
+    background: var(--spotui-accent);
+    color: var(--spotui-contrast);
+}
+.popup-row.selected .popup-row-desc {
+    color: var(--spotui-contrast);
+    opacity: 0.75;
+}
+.popup-row-cmd {
+    display: inline-block;
+    min-width: 16ch;
+    color: var(--spotui-accent);
+}
+.popup-row.selected .popup-row-cmd {
+    color: var(--spotui-contrast);
+}
+.popup-row-desc {
+    color: var(--spotui-muted);
 }
 .popup-input {
     width: 100%;
-    background: #111;
-    border: 1px solid #ff8c42;
-    color: #ff8c42;
+    background: var(--spotui-surface);
+    border: 1px solid var(--spotui-accent);
+    color: var(--spotui-accent);
     font-family: inherit;
     font-size: inherit;
     padding: 6px;
@@ -247,40 +312,189 @@ const SPOTUI_ASCII_ART = [
 ];
 
 const GLITCH_CHARS = "01";
-const ORANGE_PALETTE = [
-    "#ff6a00",
-    "#ff7a0a",
-    "#ff8c1a",
-    "#ff9e33",
-    "#ffb04d",
-    "#ffc266",
-    "#ffd480",
-    "#ffe699",
+const DEFAULT_ACCENT = { r: 255, g: 140, b: 66 };
+
+// Mirrors the sections of color.ini so the "theme" command can switch without a Spicetify
+// restart. Adding a scheme means editing both files.
+const SPOTUI_SCHEMES = [
+    { id: "spotui", label: "SpoTUI - SkenS", accent: "#ff8c42", bg: "#0a0a0a", surface: "#111111", text: "#e6e6e6", muted: "#b3b3b3", divider: "#2a2a2a", error: "#ff5555" },
+    { id: "matrix", label: "Matrix", accent: "#3bff6a", bg: "#050805", surface: "#0d150d", text: "#d8f5d8", muted: "#7aa87a", divider: "#1d2b1d", error: "#ff5555" },
+    { id: "dracula", label: "Dracula", accent: "#bd93f9", bg: "#191a21", surface: "#21222c", text: "#f8f8f2", muted: "#a4a1c4", divider: "#343746", error: "#ff5555" },
+    { id: "gruvbox", label: "Gruvbox", accent: "#fabd2f", bg: "#1d2021", surface: "#282828", text: "#ebdbb2", muted: "#a89984", divider: "#3c3836", error: "#fb4934" },
+    { id: "nord", label: "Nord", accent: "#88c0d0", bg: "#2e3440", surface: "#343c4c", text: "#eceff4", muted: "#9aa5b8", divider: "#434c5e", error: "#bf616a" },
+    { id: "mono", label: "Mono", accent: "#f0f0f0", bg: "#000000", surface: "#0f0f0f", text: "#f0f0f0", muted: "#909090", divider: "#2a2a2a", error: "#ff5555" },
 ];
+
+const SCHEME_STORAGE_KEY = "spotui:scheme";
+const SCHEME_SURFACE_TOKENS = ["bg", "surface", "text", "muted", "divider", "error"];
+
+const BACKDROP_STORAGE_KEY = "spotui:backdrop";
+const BACKDROP_OPACITY_STORAGE_KEY = "spotui:backdrop-opacity";
+
+let backdropUrl = "";
+let backdropOpacity = 0.35;
+
+let accentHsl = rgbToHsl(DEFAULT_ACCENT);
+let activeSchemeId = null;
+
+function clampNumber(value, min, max) {
+    return Math.min(Math.max(value, min), max);
+}
+
+function parseColor(value) {
+    if (!value) return null;
+    const text = String(value).trim();
+
+    const hex = text.match(/^#?([0-9a-f]{3}|[0-9a-f]{6})$/i);
+    if (hex) {
+        const digits = hex[1].length === 3
+            ? hex[1].split("").map((char) => char + char).join("")
+            : hex[1];
+        return {
+            r: parseInt(digits.slice(0, 2), 16),
+            g: parseInt(digits.slice(2, 4), 16),
+            b: parseInt(digits.slice(4, 6), 16),
+        };
+    }
+
+    const channels = text.match(/^(?:rgba?\()?\s*(\d{1,3})[,\s]+(\d{1,3})[,\s]+(\d{1,3})/i);
+    if (channels) {
+        return {
+            r: clampNumber(Number(channels[1]), 0, 255),
+            g: clampNumber(Number(channels[2]), 0, 255),
+            b: clampNumber(Number(channels[3]), 0, 255),
+        };
+    }
+
+    return null;
+}
+
+function rgbToHsl({ r, g, b }) {
+    const rn = r / 255;
+    const gn = g / 255;
+    const bn = b / 255;
+    const max = Math.max(rn, gn, bn);
+    const min = Math.min(rn, gn, bn);
+    const delta = max - min;
+
+    let hue = 0;
+    if (delta !== 0) {
+        if (max === rn) hue = ((gn - bn) / delta) % 6;
+        else if (max === gn) hue = (bn - rn) / delta + 2;
+        else hue = (rn - gn) / delta + 4;
+    }
+    hue = (hue * 60 + 360) % 360;
+
+    const lightness = (max + min) / 2;
+    const saturation = delta === 0 ? 0 : delta / (1 - Math.abs(2 * lightness - 1));
+
+    return { h: hue, s: saturation * 100, l: lightness * 100 };
+}
+
+function contrastColor({ r, g, b }) {
+    const luminance = (0.299 * r + 0.587 * g + 0.114 * b) / 255;
+    return luminance > 0.6 ? "#000000" : "#ffffff";
+}
+
+// Spreads mimic the original orange ramp: hue drifts +15deg and lightness spans 30 points.
+function accentShade(mix) {
+    const clamped = clampNumber(mix, 0, 1);
+    const hue = (accentHsl.h + clamped * 15) % 360;
+    const light = clampNumber(accentHsl.l + (clamped - 0.5) * 30, 12, 92);
+    return `hsl(${hue.toFixed(1)}, ${accentHsl.s.toFixed(1)}%, ${light.toFixed(1)}%)`;
+}
+
+function accentGlitchColor() {
+    const hue = (accentHsl.h - 5 + Math.random() * 30 + 360) % 360;
+    const sat = Math.min(accentHsl.s + 10, 100);
+    const light = clampNumber(accentHsl.l - 10 + Math.random() * 30, 20, 90);
+    return `hsl(${hue.toFixed(1)}, ${sat.toFixed(1)}%, ${light.toFixed(1)}%)`;
+}
+
+function readCssVar(name) {
+    try {
+        return getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+    } catch {
+        return "";
+    }
+}
+
+function findScheme(query) {
+    if (!query) return null;
+    const needle = String(query).trim().toLowerCase();
+    return (
+        SPOTUI_SCHEMES.find((scheme) => scheme.id === needle) ||
+        SPOTUI_SCHEMES.find((scheme) => scheme.label.toLowerCase() === needle) ||
+        SPOTUI_SCHEMES.find((scheme) => scheme.label.toLowerCase().startsWith(needle)) ||
+        null
+    );
+}
+
+function readStoredScheme() {
+    try {
+        return localStorage.getItem(SCHEME_STORAGE_KEY);
+    } catch {
+        return null;
+    }
+}
+
+function storeScheme(schemeId) {
+    try {
+        if (schemeId) localStorage.setItem(SCHEME_STORAGE_KEY, schemeId);
+        else localStorage.removeItem(SCHEME_STORAGE_KEY);
+    } catch {
+        // Storage can be unavailable; the scheme just will not survive a restart.
+    }
+}
+
+// Passing null follows whatever scheme Spicetify applied through --spice-*.
+function applyScheme(schemeId) {
+    const scheme = findScheme(schemeId);
+    activeSchemeId = scheme ? scheme.id : null;
+
+    const resolved =
+        (scheme && parseColor(scheme.accent)) ||
+        parseColor(readCssVar("--spice-button-active")) ||
+        parseColor(readCssVar("--spice-rgb-button-active")) ||
+        parseColor(readCssVar("--spice-misc")) ||
+        DEFAULT_ACCENT;
+
+    accentHsl = rgbToHsl(resolved);
+
+    const root = document.documentElement;
+    root.style.setProperty("--spotui-accent", `rgb(${resolved.r}, ${resolved.g}, ${resolved.b})`);
+    root.style.setProperty("--spotui-accent-rgb", `${resolved.r}, ${resolved.g}, ${resolved.b}`);
+    root.style.setProperty("--spotui-accent-hover", accentShade(0.25));
+    root.style.setProperty("--spotui-accent-light", accentShade(0.8));
+    root.style.setProperty("--spotui-contrast", contrastColor(resolved));
+
+    SCHEME_SURFACE_TOKENS.forEach((token) => {
+        if (scheme) root.style.setProperty(`--spotui-${token}`, scheme[token]);
+        else root.style.removeProperty(`--spotui-${token}`);
+    });
+
+    refreshAsciiColors();
+}
 
 function getCharColor(row, col, totalRows, totalCols) {
     const normRow = row / Math.max(totalRows - 1, 1);
     const normCol = col / Math.max(totalCols - 1, 1);
-    const mix = normRow * 0.55 + normCol * 0.45;
-    const idx = Math.floor(mix * (ORANGE_PALETTE.length - 1));
-    const frac = mix * (ORANGE_PALETTE.length - 1) - idx;
-    const i = Math.min(idx, ORANGE_PALETTE.length - 2);
-    const c1 = ORANGE_PALETTE[i];
-    const c2 = ORANGE_PALETTE[i + 1] || ORANGE_PALETTE[i];
-    const r1 = parseInt(c1.slice(1, 3), 16);
-    const g1 = parseInt(c1.slice(3, 5), 16);
-    const b1 = parseInt(c1.slice(5, 7), 16);
-    const r2 = parseInt(c2.slice(1, 3), 16);
-    const g2 = parseInt(c2.slice(3, 5), 16);
-    const b2 = parseInt(c2.slice(5, 7), 16);
-    const r = Math.round(r1 + (r2 - r1) * frac);
-    const g = Math.round(g1 + (g2 - g1) * frac);
-    const b = Math.round(b1 + (b2 - b1) * frac);
-    return `rgb(${r},${g},${b})`;
+    return accentShade(normRow * 0.55 + normCol * 0.45);
 }
 
 let asciiAnimationInitialized = false;
 let asciiCharData = [];
+let asciiGridSize = { rows: 0, cols: 0 };
+
+function refreshAsciiColors() {
+    if (!asciiCharData.length) return;
+    asciiCharData.forEach((entry) => {
+        const color = getCharColor(entry.row, entry.col, asciiGridSize.rows, asciiGridSize.cols);
+        entry.color = color;
+        entry.el.style.color = color;
+        entry.el.dataset.origColor = color;
+    });
+}
 
 function initAsciiAnimation() {
     if (asciiAnimationInitialized) return;
@@ -297,6 +511,7 @@ function initAsciiAnimation() {
 
     const rows = SPOTUI_ASCII_ART.length;
     const cols = Math.max(...SPOTUI_ASCII_ART.map((row) => row.length));
+    asciiGridSize = { rows, cols };
     const charData = [];
     const rowSpansCache = [];
 
@@ -351,7 +566,7 @@ function initAsciiAnimation() {
         if (!spans.length) return;
         const chars = [...GLITCH_CHARS];
         const origs = spans.map((span) => span.dataset.original || " ");
-        const colors = spans.map((span) => span.dataset.origColor || "#ff8c1a");
+        const colors = spans.map((span) => span.dataset.origColor || accentShade(0.5));
 
         spans.forEach((span) => {
             span.textContent = chars[Math.floor(Math.random() * chars.length)];
@@ -382,21 +597,20 @@ function initAsciiAnimation() {
         const spans = getRowSpans(rowIdx);
         if (!spans.length) return;
         const origs = spans.map((span) => span.dataset.original || " ");
-        const colors = spans.map((span) => span.dataset.origColor || "#ff8c1a");
+        const colors = spans.map((span) => span.dataset.origColor || accentShade(0.5));
         const chars = [...GLITCH_CHARS];
         const steps = 8;
         for (let step = 0; step < steps; step += 1) {
             spans.forEach((span) => {
                 const randIdx = Math.floor(Math.random() * chars.length);
                 span.textContent = chars[randIdx];
-                const hue = 20 + Math.random() * 35;
-                span.style.color = `hsl(${hue}, 100%, ${50 + Math.random() * 30}%)`;
+                span.style.color = accentGlitchColor();
             });
             await sleep(Math.floor(duration / steps));
         }
         spans.forEach((span, i) => {
             span.textContent = origs[i] || " ";
-            span.style.color = colors[i] || "#ff8c1a";
+            span.style.color = colors[i] || accentShade(0.5);
         });
     }
 
@@ -420,7 +634,7 @@ function initAsciiAnimation() {
                     if (Math.random() < 0.75) {
                         const randIdx = Math.floor(Math.random() * chars.length);
                         el.textContent = chars[randIdx];
-                        el.style.color = `hsl(${20 + Math.random() * 35}, 100%, ${50 + Math.random() * 30}%)`;
+                        el.style.color = accentGlitchColor();
                     }
                 } else if (norm < threshold - 0.12) {
                     el.textContent = original;
@@ -455,7 +669,7 @@ function initAsciiAnimation() {
                         if (Math.random() < 0.7) {
                             const randIdx = Math.floor(Math.random() * chars.length);
                             el.textContent = chars[randIdx];
-                            el.style.color = `hsl(${20 + Math.random() * 35}, 100%, ${55 + Math.random() * 25}%)`;
+                            el.style.color = accentGlitchColor();
                         }
                     } else if (norm < threshold - 0.1 && wave === waves - 1) {
                         el.textContent = original;
@@ -484,7 +698,7 @@ function initAsciiAnimation() {
         withDist.forEach(({ el }) => {
             const randIdx = Math.floor(Math.random() * chars.length);
             el.textContent = chars[randIdx];
-            el.style.color = `hsl(${20 + Math.random() * 35}, 100%, ${45 + Math.random() * 35}%)`;
+            el.style.color = accentGlitchColor();
         });
 
         for (let step = 0; step < steps; step += 1) {
@@ -524,7 +738,7 @@ function initAsciiAnimation() {
                 if (diff < wedgeWidth && dist > 0.1) {
                     const randIdx = Math.floor(Math.random() * chars.length);
                     el.textContent = chars[randIdx];
-                    el.style.color = `hsl(${20 + Math.random() * 35}, 100%, ${55 + Math.random() * 25}%)`;
+                    el.style.color = accentGlitchColor();
                 } else {
                     el.textContent = original;
                     el.style.color = color;
@@ -557,7 +771,7 @@ function initAsciiAnimation() {
                 if (distanceFromTarget < bandWidth && Math.random() < 0.65) {
                     const randIdx = Math.floor(Math.random() * chars.length);
                     el.textContent = chars[randIdx];
-                    el.style.color = `hsl(${20 + Math.random() * 35}, 100%, ${50 + Math.random() * 30}%)`;
+                    el.style.color = accentGlitchColor();
                 } else if (distanceFromTarget > bandWidth * 1.5) {
                     el.textContent = original;
                     el.style.color = color;
@@ -575,7 +789,7 @@ function initAsciiAnimation() {
             charData.forEach(({ el }) => {
                 if (Math.random() < 0.8) {
                     el.textContent = chars[Math.floor(Math.random() * chars.length)];
-                    el.style.color = `hsl(${20 + Math.random() * 35}, 100%, ${50 + Math.random() * 30}%)`;
+                    el.style.color = accentGlitchColor();
                 }
             });
             await sleep(Math.floor(duration / steps));
@@ -596,7 +810,7 @@ function initAsciiAnimation() {
                 const spans = getRowSpans(row);
                 spans.forEach((span) => {
                     span.textContent = chars[Math.floor(Math.random() * chars.length)];
-                    span.style.color = `hsl(${20 + Math.random() * 35}, 100%, ${50 + Math.random() * 30}%)`;
+                    span.style.color = accentGlitchColor();
                 });
             }
             await sleep(Math.floor(duration / totalSteps));
@@ -616,7 +830,7 @@ function initAsciiAnimation() {
             charData.forEach(({ el, col }) => {
                 if (col >= bandLeft && col <= bandRight) {
                     el.textContent = chars[Math.floor(Math.random() * chars.length)];
-                    el.style.color = `hsl(${20 + Math.random() * 35}, 100%, ${50 + Math.random() * 30}%)`;
+                    el.style.color = accentGlitchColor();
                 }
             });
             await sleep(Math.floor(duration / totalSteps));
@@ -728,10 +942,17 @@ function initAsciiAnimation() {
     runLoop().catch(console.error);
 }
 
+const STATUS_TIMEOUT_MS = 5000;
+const LYRICS_REFRESH_DEBOUNCE_MS = 150;
+const PLAYLIST_PAGE_SIZE = 200;
+const PLAYLIST_MAX_TRACKS = 10000;
+const SEARCH_RESULT_LIMIT = 25;
+
 let tuiMode = "command";
 
-let results = [];
-let selected = 0;
+let commandHistory = [];
+let historyIndex = -1;
+let historyDraft = "";
 let lyricsObserver = null;
 
 function injectStyle() {
@@ -854,10 +1075,21 @@ function initLyricsBridge() {
         syncLyricsState();
     };
 
+    // The observer watches the whole body, so Spotify's constant DOM churn would otherwise
+    // run this on every mutation.
+    let refreshTimer = null;
+    const scheduleRefresh = () => {
+        if (refreshTimer !== null) return;
+        refreshTimer = setTimeout(() => {
+            refreshTimer = null;
+            refresh();
+        }, LYRICS_REFRESH_DEBOUNCE_MS);
+    };
+
     refresh();
 
     if (!lyricsObserver) {
-        lyricsObserver = new MutationObserver(refresh);
+        lyricsObserver = new MutationObserver(scheduleRefresh);
         lyricsObserver.observe(document.body, {
             childList: true,
             subtree: true,
@@ -867,6 +1099,7 @@ function initLyricsBridge() {
         window.addEventListener(
             "beforeunload",
             () => {
+                clearTimeout(refreshTimer);
                 lyricsObserver?.disconnect();
             },
             { once: true }
@@ -879,12 +1112,14 @@ function createTerminal() {
     box.id = "spotui-tui";
     setTuiMode("command");
     box.innerHTML = `
+<div id="spotui-backdrop"></div>
 <div id="spotui-logo"></div>
-<div id="spotui-output">SpoTUI v1.0
+<div id="spotui-output">SpoTUI v1.1
 
 Type /help
 
 </div>
+<div id="spotui-status"></div>
 <div id="spotui-footer">
 <span class="prompt">></span>
 <input id="spotui-input" autofocus placeholder="type help for a list of commands">
@@ -892,30 +1127,89 @@ Type /help
 `;
     document.body.appendChild(box);
     initAsciiAnimation();
+    renderBackdrop();
 
     const input = document.getElementById("spotui-input");
     input.addEventListener("keydown", async (e) => {
         if (e.key === "Enter") {
             const cmd = input.value.trim();
             input.value = "";
-            print("> " + cmd);
+            if (!cmd) return;
+            pushHistory(cmd);
+            print("> " + cmd, "echo");
             await execute(cmd);
+            return;
         }
-        if (e.key === "ArrowDown" && results.length) {
-            selected = Math.min(selected + 1, results.length - 1);
-            renderResults();
+
+        if (e.key === "ArrowUp") {
+            e.preventDefault();
+            recallHistory(input, -1);
+            return;
         }
-        if (e.key === "ArrowUp" && results.length) {
-            selected = Math.max(selected - 1, 0);
-            renderResults();
+
+        if (e.key === "ArrowDown") {
+            e.preventDefault();
+            recallHistory(input, 1);
         }
     });
 
 }
 
-function print(text) {
+function pushHistory(cmd) {
+    if (commandHistory[commandHistory.length - 1] !== cmd) {
+        commandHistory.push(cmd);
+    }
+    if (commandHistory.length > 100) commandHistory.shift();
+    historyIndex = -1;
+    historyDraft = "";
+}
+
+function recallHistory(input, direction) {
+    if (!commandHistory.length) return;
+
+    if (historyIndex === -1) {
+        if (direction > 0) return;
+        historyDraft = input.value;
+        historyIndex = commandHistory.length - 1;
+    } else {
+        const next = historyIndex + direction;
+        if (next >= commandHistory.length) {
+            historyIndex = -1;
+            input.value = historyDraft;
+            input.setSelectionRange(input.value.length, input.value.length);
+            return;
+        }
+        historyIndex = Math.max(next, 0);
+    }
+
+    input.value = commandHistory[historyIndex];
+    input.setSelectionRange(input.value.length, input.value.length);
+}
+
+let statusTimer = null;
+
+function setStatus(text, level) {
+    const status = document.getElementById("spotui-status");
+    if (!status) return;
+    status.textContent = text;
+    status.classList.toggle("error", level === "error");
+    status.classList.add("visible");
+    clearTimeout(statusTimer);
+    statusTimer = setTimeout(() => {
+        status.classList.remove("visible");
+    }, STATUS_TIMEOUT_MS);
+}
+
+// Levels: "info" and "error" reach the status line so feedback survives command mode,
+// where the log is hidden; "log" and "echo" stay in the scrollback only.
+function print(text, level = "info") {
+    if (level === "info" || level === "error") {
+        setStatus(text, level);
+    }
+
     if (tuiMode !== "cli") return;
     const output = document.getElementById("spotui-output");
+    if (!output) return;
     const line = document.createElement("div");
     line.className = "cl-line";
     line.textContent = text;
@@ -933,20 +1227,19 @@ async function execute(cmd) {
         if (args[0] === "-m") {
             const mode = args[1];
             if (!mode || (mode !== "cli" && mode !== "command")) {
-                print("Usage: tui -m [command|cli]");
+                print("Usage: tui -m [command|cli]", "error");
                 return;
             }
             setTuiMode(mode);
             print(`TUI mode: ${mode}`);
             return;
         }
-        print("Usage: tui -m [command|cli]");
+        print("Usage: tui -m [command|cli]", "error");
         return;
     }
 
     if (command === "help") {
-        popupMode = "help";
-        renderPopup();
+        openHelpPopup(argText);
         return;
     }
     if (command === "clear") {
@@ -977,7 +1270,7 @@ async function execute(cmd) {
             }
             print("Playing");
         } catch (err) {
-            print("Play error: " + err.message);
+            print("Play error: " + err.message, "error");
         }
         return;
     }
@@ -990,7 +1283,7 @@ async function execute(cmd) {
             }
             print("Paused");
         } catch (err) {
-            print("Pause error: " + err.message);
+            print("Pause error: " + err.message, "error");
         }
         return;
     }
@@ -1001,15 +1294,64 @@ async function execute(cmd) {
             Spicetify.Player.togglePlay();
             print(wasPlaying ? "Paused" : "Playing");
         } catch (err) {
-            print("Play/pause error: " + err.message);
+            print("Play/pause error: " + err.message, "error");
         }
         return;
     }
 
     if (command === "search") {
+        if (argText) {
+            await openSearchPopup(argText);
+            return;
+        }
         document.body.classList.add("spotui-search-mode");
         document.body.classList.add("spotui-tui-hidden");
         syncLyricsState();
+        return;
+    }
+
+    if (command === "add") {
+        await handleAddCommand(argText);
+        return;
+    }
+
+    if (command === "np" || command === "info") {
+        handleNowPlayingCommand();
+        return;
+    }
+
+    if (command === "like") {
+        handleHeartCommand(true);
+        return;
+    }
+
+    if (command === "unlike") {
+        handleHeartCommand(false);
+        return;
+    }
+
+    if (command === "seek") {
+        handleSeekCommand(argText);
+        return;
+    }
+
+    if (command === "lyrics") {
+        handleLyricsCommand();
+        return;
+    }
+
+    if (command === "sleep") {
+        handleSleepCommand(argText);
+        return;
+    }
+
+    if (command === "theme") {
+        handleThemeCommand(argText);
+        return;
+    }
+
+    if (command === "bg") {
+        handleBackdropCommand(argText);
         return;
     }
 
@@ -1018,7 +1360,7 @@ async function execute(cmd) {
             Spicetify.Player.next();
             print("Skipped to next track");
         } catch (err) {
-            print("Skip error: " + err.message);
+            print("Skip error: " + err.message, "error");
         }
         return;
     }
@@ -1027,7 +1369,7 @@ async function execute(cmd) {
             Spicetify.Player.back();
             print("Went back to previous track");
         } catch (err) {
-            print("Back error: " + err.message);
+            print("Back error: " + err.message, "error");
         }
         return;
     }
@@ -1035,18 +1377,18 @@ async function execute(cmd) {
     if (command === "volume" || command === "v") {
         try {
             if (!argText) {
-                print("Usage: volume <0-100>");
+                print("Usage: volume <0-100>", "error");
                 return;
             }
             const percent = Number(argText);
             if (!Number.isFinite(percent) || percent < 0 || percent > 100) {
-                print("Volume must be between 0 and 100.");
+                print("Volume must be between 0 and 100.", "error");
                 return;
             }
             Spicetify.Player.setVolume(percent / 100);
             print(`Volume is ${Math.round(percent)}%`);
         } catch (err) {
-            print("Volume error: " + err.message);
+            print("Volume error: " + err.message, "error");
         }
         return;
     }
@@ -1057,7 +1399,7 @@ async function execute(cmd) {
             Spicetify.Player.setShuffle(!current);
             print("Shuffle: " + (!current ? "ON" : "OFF"));
         } catch (err) {
-            print("Shuffle error: " + err.message);
+            print("Shuffle error: " + err.message, "error");
         }
         return;
     }
@@ -1072,18 +1414,78 @@ async function execute(cmd) {
         return;
     }
 
-    print("Unknown command. Type /help");
+    print("Unknown command. Type /help", "error");
 }
 
-function renderResults() {
-    const output = document.getElementById("spotui-output");
-    output.textContent = "";
-    results.forEach((item, idx) => {
-        const line = document.createElement("div");
-        line.className = "result" + (idx === selected ? " selected" : "");
-        line.textContent = `${idx + 1}. ${item.name}${item.artist ? " - " + item.artist : ""}`;
-        output.appendChild(line);
-    });
+// Each entry is [usage, description, ...aliases used when resolving "help <command>"].
+const HELP_CATEGORIES = [
+    {
+        id: "playback",
+        label: "Playback",
+        entries: [
+            ["play", "resume playback"],
+            ["pause", "pause playback"],
+            ["p", "toggle play/pause"],
+            ["skip", "next track"],
+            ["back", "previous track"],
+            ["seek <pos>", "mm:ss, seconds, 50%, +15 or -15"],
+            ["v | volume <0-100>", "set volume", "v", "volume"],
+            ["shuffle", "toggle shuffle"],
+            ["loop [on|off]", "repeat the whole context"],
+            ["superloop [on|off]", "repeat the current track"],
+            ["sleep <min|off>", "pause playback after N minutes"],
+        ],
+    },
+    {
+        id: "library",
+        label: "Library",
+        entries: [
+            ["search <terms>", "search tracks (no terms opens Spotify search)"],
+            ["add <terms>", "queue the top search result"],
+            ["playlist", "browse your playlists"],
+            ["list", "tracks of the playing playlist"],
+            ["queue", "current queue"],
+            ["like | unlike", "save or remove the current track", "like", "unlike"],
+            ["np | info", "show what is playing", "np", "info"],
+            ["lyrics", "toggle the lyrics panel"],
+        ],
+    },
+    {
+        id: "interface",
+        label: "Interface",
+        entries: [
+            ["theme [name|auto]", "switch color scheme live; no name opens the picker"],
+            ["bg <url|off>", "image behind the logo screen; bg opacity <0-100>"],
+            ["tui -m [command|cli]", "switch interface mode"],
+            ["clear", "clear the log"],
+            ["help [category|command]", "this list"],
+        ],
+    },
+];
+
+function helpEntryNames(entry) {
+    const [usage, , ...aliases] = entry;
+    return aliases.length ? aliases : [usage.split(/[\s<[|]/)[0]];
+}
+
+// Resolves "help <query>" to a category, falling back to the category owning a command.
+function findHelpTarget(query) {
+    const needle = query.trim().toLowerCase();
+    if (!needle) return null;
+
+    const byCategory = HELP_CATEGORIES.findIndex(
+        (category) => category.id === needle || category.label.toLowerCase().startsWith(needle)
+    );
+    if (byCategory >= 0) return { category: byCategory, entry: 0 };
+
+    for (let i = 0; i < HELP_CATEGORIES.length; i += 1) {
+        const entry = HELP_CATEGORIES[i].entries.findIndex((item) =>
+            helpEntryNames(item).includes(needle)
+        );
+        if (entry >= 0) return { category: i, entry };
+    }
+
+    return null;
 }
 
 let popup = null;
@@ -1094,8 +1496,35 @@ let popupTracks = [];
 let popupTrackSelected = 0;
 let popupTrackTitle = "";
 let popupTrackContext = null;
+let popupSchemeSelected = 0;
+let popupSchemeOriginal = null;
+let popupHelpSelected = 0;
+let popupHelpCategory = null;
 let lastPlaylistContextUri = null;
 let lastQueueSnapshot = null;
+
+function openHelpPopup(query) {
+    const target = query ? findHelpTarget(query) : null;
+
+    if (query && !target) {
+        const names = HELP_CATEGORIES.map((category) => category.id).join(", ");
+        print(`No help for "${query}". Categories: ${names}`, "error");
+        return;
+    }
+
+    popupHelpCategory = target ? target.category : null;
+    popupHelpSelected = target ? target.entry : 0;
+    popupMode = "help";
+    renderPopup();
+}
+
+function openThemePopup() {
+    popupSchemeOriginal = activeSchemeId;
+    const current = SPOTUI_SCHEMES.findIndex((scheme) => scheme.id === activeSchemeId);
+    popupSchemeSelected = Math.max(current, 0);
+    popupMode = "themes";
+    renderPopup();
+}
 
 function getTrackTitle(track, index = 0) {
     const meta = track?.metadata || track?.contextTrack?.metadata || {};
@@ -1144,12 +1573,336 @@ function getCurrentPlaylistContextUri() {
     return lastPlaylistContextUri;
 }
 
-function getPlaylistId(uri) {
+async function searchTracks(query, limit = SEARCH_RESULT_LIMIT) {
+    const url = `https://api.spotify.com/v1/search?q=${encodeURIComponent(query)}&type=track&limit=${limit}`;
+    const res = await Spicetify.CosmosAsync.get(url);
+    return dedupeTracks((res?.tracks?.items || []).map((track, index) => normalizeTrackItem(track, index)));
+}
+
+async function openSearchPopup(query) {
+    print(`Searching "${query}"...`);
     try {
-        return Spicetify.URI.fromString(uri)?.id ?? uri.split(":").pop();
-    } catch {
-        return uri.split(":").pop();
+        const tracks = await searchTracks(query);
+        if (!tracks.length) {
+            print(`No results for "${query}".`, "error");
+            return;
+        }
+        popupTracks = tracks;
+        popupTrackTitle = `Search: ${query}`;
+        popupTrackContext = null;
+        popupTrackSelected = 0;
+        popupMode = "tracks";
+        renderPopup();
+        print(`${tracks.length} result${tracks.length === 1 ? "" : "s"} for "${query}"`);
+    } catch (err) {
+        print("Search error: " + err.message, "error");
+        console.error("SpoTUI search error:", err);
     }
+}
+
+async function queueTrack(uri) {
+    const item = { uri };
+    if (Spicetify.Platform?.PlayerAPI?.addToQueue) {
+        await Spicetify.Platform.PlayerAPI.addToQueue([item]);
+        return;
+    }
+    await Spicetify.addToQueue([item]);
+}
+
+async function handleAddCommand(query) {
+    if (!query) {
+        print("Usage: add <search terms>", "error");
+        return;
+    }
+    try {
+        const [track] = await searchTracks(query, 1);
+        if (!track) {
+            print(`No results for "${query}".`, "error");
+            return;
+        }
+        await queueTrack(track.uri);
+        print(`Queued: ${formatTrackLabel(track)}`);
+    } catch (err) {
+        print("Add error: " + err.message, "error");
+        console.error("SpoTUI add error:", err);
+    }
+}
+
+function formatTrackLabel(track) {
+    return track.artist ? `${track.name} - ${track.artist}` : track.name;
+}
+
+function renderProgressBar(percent, width = 24) {
+    const filled = Math.round(clampNumber(percent, 0, 1) * width);
+    return `[${"\u2588".repeat(filled)}${"\u2591".repeat(width - filled)}]`;
+}
+
+function handleNowPlayingCommand() {
+    const item = Spicetify.Player.data?.item;
+    if (!item) {
+        print("Nothing is playing.", "error");
+        return;
+    }
+
+    const track = normalizeTrackItem(item);
+    const progress = Spicetify.Player.getProgress();
+    const duration = Spicetify.Player.getDuration();
+    const clock = `${Spicetify.Player.formatTime(progress)} / ${Spicetify.Player.formatTime(duration)}`;
+    const album = item.album?.name || item.metadata?.album_title || "";
+    const repeatLabels = ["off", "all", "one"];
+
+    print(formatTrackLabel(track), "log");
+    if (album) print(`Album: ${album}`, "log");
+    print(`${renderProgressBar(duration ? progress / duration : 0)} ${clock}`, "log");
+    print(
+        `volume ${Math.round(Spicetify.Player.getVolume() * 100)}%` +
+            ` | shuffle ${Spicetify.Player.getShuffle() ? "on" : "off"}` +
+            ` | repeat ${repeatLabels[Spicetify.Player.getRepeat()] ?? "off"}` +
+            ` | ${Spicetify.Player.getHeart() ? "liked" : "not liked"}`,
+        "log"
+    );
+    setStatus(`${formatTrackLabel(track)}  ${clock}`);
+}
+
+function handleHeartCommand(shouldLike) {
+    try {
+        if (!Spicetify.Player.data?.item) {
+            print("Nothing is playing.", "error");
+            return;
+        }
+        if (Spicetify.Player.getHeart() === shouldLike) {
+            print(shouldLike ? "Already liked." : "Not in your library.");
+            return;
+        }
+        Spicetify.Player.setHeart(shouldLike);
+        print(shouldLike ? "Liked current track" : "Removed from library");
+    } catch (err) {
+        print("Like error: " + err.message, "error");
+    }
+}
+
+// Accepts mm:ss, plain seconds, a percentage, or a +/- relative offset in seconds.
+function parseSeekTarget(arg, progress, duration) {
+    const relative = arg.match(/^([+-])(\d+(?:\.\d+)?)$/);
+    if (relative) {
+        const delta = Number(relative[2]) * 1000 * (relative[1] === "-" ? -1 : 1);
+        return progress + delta;
+    }
+
+    const percent = arg.match(/^(\d+(?:\.\d+)?)%$/);
+    if (percent) {
+        return (Number(percent[1]) / 100) * duration;
+    }
+
+    const clock = arg.match(/^(\d+):([0-5]?\d)$/);
+    if (clock) {
+        return (Number(clock[1]) * 60 + Number(clock[2])) * 1000;
+    }
+
+    const seconds = arg.match(/^\d+(?:\.\d+)?$/);
+    if (seconds) {
+        return Number(arg) * 1000;
+    }
+
+    return null;
+}
+
+function handleSeekCommand(arg) {
+    try {
+        const duration = Spicetify.Player.getDuration();
+        if (!duration) {
+            print("Nothing is playing.", "error");
+            return;
+        }
+        if (!arg) {
+            print("Usage: seek <mm:ss | seconds | 50% | +15 | -15>", "error");
+            return;
+        }
+
+        const target = parseSeekTarget(arg, Spicetify.Player.getProgress(), duration);
+        if (target === null) {
+            print("Usage: seek <mm:ss | seconds | 50% | +15 | -15>", "error");
+            return;
+        }
+
+        const position = clampNumber(Math.round(target), 0, duration);
+        Spicetify.Player.seek(position);
+        print(`Seeked to ${Spicetify.Player.formatTime(position)}`);
+    } catch (err) {
+        print("Seek error: " + err.message, "error");
+    }
+}
+
+function handleLyricsCommand() {
+    const button = document.querySelector(".main-nowPlayingBar-lyricsButton");
+    if (!button) {
+        print("Lyrics button not available for this track.", "error");
+        return;
+    }
+    button.click();
+    setTimeout(syncLyricsState, 250);
+    print(detectLyricsSurface() ? "Closing lyrics" : "Opening lyrics");
+}
+
+let sleepTimer = null;
+
+function handleSleepCommand(arg) {
+    if (arg === "off" || arg === "cancel") {
+        if (sleepTimer === null) {
+            print("No sleep timer set.");
+            return;
+        }
+        clearTimeout(sleepTimer);
+        sleepTimer = null;
+        print("Sleep timer cancelled");
+        return;
+    }
+
+    const minutes = Number(arg);
+    if (!arg || !Number.isFinite(minutes) || minutes <= 0 || minutes > 600) {
+        print("Usage: sleep <minutes 1-600 | off>", "error");
+        return;
+    }
+
+    clearTimeout(sleepTimer);
+    sleepTimer = setTimeout(() => {
+        sleepTimer = null;
+        try {
+            if (Spicetify.Player.isPlaying()) Spicetify.Player.togglePlay();
+            print("Sleep timer reached, playback paused");
+        } catch (err) {
+            print("Sleep timer error: " + err.message, "error");
+        }
+    }, minutes * 60 * 1000);
+
+    print(`Sleep timer set for ${minutes} minute${minutes === 1 ? "" : "s"}`);
+}
+
+function parseImageUrl(input) {
+    try {
+        const url = new URL(String(input).trim());
+        if (url.protocol !== "http:" && url.protocol !== "https:") return null;
+        return url.href;
+    } catch {
+        return null;
+    }
+}
+
+function renderBackdrop() {
+    document.documentElement.style.setProperty("--spotui-backdrop-opacity", String(backdropOpacity));
+
+    const el = document.getElementById("spotui-backdrop");
+    if (!el) return;
+
+    if (backdropUrl) {
+        // The URL lands inside a CSS url(), so quotes and backslashes must not survive.
+        el.style.backgroundImage = `url("${backdropUrl.replace(/["\\]/g, encodeURIComponent)}")`;
+        el.classList.add("visible");
+    } else {
+        el.style.backgroundImage = "";
+        el.classList.remove("visible");
+    }
+}
+
+function setBackdrop(url, opacity) {
+    backdropUrl = url;
+    backdropOpacity = clampNumber(opacity, 0, 1);
+
+    try {
+        if (url) localStorage.setItem(BACKDROP_STORAGE_KEY, url);
+        else localStorage.removeItem(BACKDROP_STORAGE_KEY);
+        localStorage.setItem(BACKDROP_OPACITY_STORAGE_KEY, String(backdropOpacity));
+    } catch {
+        // Storage can be unavailable; the backdrop just will not survive a restart.
+    }
+
+    renderBackdrop();
+}
+
+function restoreBackdrop() {
+    try {
+        backdropUrl = parseImageUrl(localStorage.getItem(BACKDROP_STORAGE_KEY) || "") || "";
+        const stored = Number(localStorage.getItem(BACKDROP_OPACITY_STORAGE_KEY));
+        if (Number.isFinite(stored) && stored > 0) backdropOpacity = clampNumber(stored, 0, 1);
+    } catch {
+        backdropUrl = "";
+    }
+}
+
+const BACKDROP_USAGE = "Usage: bg <http(s) image url> | bg opacity <0-100> | bg off";
+
+function handleBackdropCommand(arg) {
+    const trimmed = arg.trim();
+    const [sub, ...rest] = trimmed.split(/\s+/);
+    const value = rest.join(" ").trim();
+
+    if (!sub) {
+        print(
+            backdropUrl
+                ? `Backdrop at ${Math.round(backdropOpacity * 100)}%: ${backdropUrl}`
+                : `No backdrop set. ${BACKDROP_USAGE}`
+        );
+        return;
+    }
+
+    if (sub === "off" || sub === "clear" || sub === "none") {
+        setBackdrop("", backdropOpacity);
+        print("Backdrop removed");
+        return;
+    }
+
+    if (sub === "opacity" || sub === "o") {
+        const percent = Number(value);
+        if (!value || !Number.isFinite(percent) || percent < 0 || percent > 100) {
+            print("Usage: bg opacity <0-100>", "error");
+            return;
+        }
+        setBackdrop(backdropUrl, percent / 100);
+        print(`Backdrop opacity: ${Math.round(percent)}%`);
+        return;
+    }
+
+    const url = parseImageUrl(trimmed);
+    if (!url) {
+        print(BACKDROP_USAGE, "error");
+        return;
+    }
+
+    print("Loading backdrop...");
+    const probe = new Image();
+    probe.onload = () => {
+        setBackdrop(url, backdropOpacity);
+        print(`Backdrop set at ${Math.round(backdropOpacity * 100)}%`);
+    };
+    probe.onerror = () => print("Could not load that image URL.", "error");
+    probe.src = url;
+}
+
+function handleThemeCommand(arg) {
+    const query = arg.trim();
+
+    if (!query) {
+        openThemePopup();
+        return;
+    }
+
+    if (query === "auto" || query === "reset") {
+        applyScheme(null);
+        storeScheme(null);
+        print("Theme: following the Spicetify scheme");
+        return;
+    }
+
+    const scheme = findScheme(query);
+    if (!scheme) {
+        const names = SPOTUI_SCHEMES.map((entry) => entry.id).join(", ");
+        print(`Unknown theme "${query}". Try: ${names}, auto`, "error");
+        return;
+    }
+
+    applyScheme(scheme.id);
+    storeScheme(scheme.id);
+    print(`Theme: ${scheme.label}`);
 }
 
 function handleRepeatCommand(kind, arg) {
@@ -1165,14 +1918,14 @@ function handleRepeatCommand(kind, arg) {
         } else if (arg === "") {
             nextMode = current === targetMode ? 0 : targetMode;
         } else {
-            print(`Usage: /${kind} [on|off]`);
+            print(`Usage: /${kind} [on|off]`, "error");
             return;
         }
 
         Spicetify.Player.setRepeat(nextMode);
         print(`${kind === "loop" ? "Loop" : "Superloop"}: ${nextMode === 0 ? "OFF" : "ON"}`);
     } catch (err) {
-        print(`${kind === "loop" ? "Loop" : "Superloop"} error: ${err.message}`);
+        print(`${kind === "loop" ? "Loop" : "Superloop"} error: ${err.message}`, "error");
     }
 }
 
@@ -1196,7 +1949,7 @@ async function openPlaylistPopup() {
     try {
         playlists = await getPlaylists();
     } catch (err) {
-        print("Playlist error: " + err.message);
+        print("Playlist error: " + err.message, "error");
         return;
     }
     popupSelected = 0;
@@ -1204,17 +1957,36 @@ async function openPlaylistPopup() {
     renderPopup();
 }
 
+async function fetchPlaylistItems(contextUri) {
+    const items = [];
+    let offset = 0;
+
+    while (offset < PLAYLIST_MAX_TRACKS) {
+        const res = await Spicetify.Platform.PlaylistAPI.getContents(contextUri, {
+            limit: PLAYLIST_PAGE_SIZE,
+            offset,
+        });
+        const page = res?.items || [];
+        items.push(...page);
+
+        const total = res?.totalLength ?? res?.unfilteredTotalLength;
+        offset += page.length;
+        if (page.length < PLAYLIST_PAGE_SIZE) break;
+        if (typeof total === "number" && offset >= total) break;
+    }
+
+    return items;
+}
+
 async function openPlaylistTracksPopup() {
     try {
         const contextUri = getCurrentPlaylistContextUri();
         if (!contextUri || !Spicetify.URI.isPlaylistV1OrV2(contextUri)) {
-            print("List error: not currently playing a playlist.");
+            print("List error: not currently playing a playlist.", "error");
             return;
         }
-        const res = await Spicetify.Platform.PlaylistAPI.getContents(contextUri, {
-            limit: 9999999,
-        });
-        popupTracks = (res.items || [])
+        const items = await fetchPlaylistItems(contextUri);
+        popupTracks = items
             .filter((item) => item && item.uri && item.isPlayable !== false)
             .map((item, index) => normalizeTrackItem(item, index));
         popupTracks = dedupeTracks(popupTracks);
@@ -1226,7 +1998,7 @@ async function openPlaylistTracksPopup() {
         popupMode = "tracks";
         renderPopup();
     } catch (err) {
-        print("List error: " + err.message);
+        print("List error: " + err.message, "error");
         console.error("Playlist tracks popup error:", err);
     }
 }
@@ -1318,7 +2090,12 @@ function renderPopup() {
         inputEl.focus();
         inputEl.addEventListener("keydown", handleNewKeydown);
     } else if (popupMode === "tracks") {
-        popup.innerHTML = `<div class="popup-title">${popupTrackTitle} &mdash; &uarr;/&darr; move &middot; Enter play &middot; Esc close</div><div id="popup-list"></div>`;
+        // The title can carry a user-typed search query, so it is set as text rather than markup.
+        popup.innerHTML = `<div id="popup-list"></div>`;
+        const titleEl = document.createElement("div");
+        titleEl.className = "popup-title";
+        titleEl.textContent = `${popupTrackTitle} \u2014 \u2191/\u2193 move \u00b7 Enter play \u00b7 a queue \u00b7 Esc close`;
+        popup.prepend(titleEl);
         document.body.appendChild(popup);
         const listEl = popup.querySelector("#popup-list");
         if (!popupTracks.length) {
@@ -1337,35 +2114,56 @@ function renderPopup() {
         popup.addEventListener("keydown", handleTrackListKeydown);
         popup.focus();
         scrollSelectedPopupRowIntoView();
-    } else if (popupMode === "help") {
-        popup.innerHTML = `<div class="popup-title">Help &mdash; Esc close</div><div id="popup-list"></div>`;
+    } else if (popupMode === "themes") {
+        popup.innerHTML = `<div class="popup-title">Theme &mdash; &uarr;/&darr; preview &middot; Enter keep &middot; a follow Spicetify &middot; Esc cancel</div><div id="popup-list"></div>`;
         document.body.appendChild(popup);
         const listEl = popup.querySelector("#popup-list");
-        [
-            "tui -m [command|cli]",
-            "playlist",
-            "list",
-            "queue",
-            "play",
-            "pause",
-            "p",
-            "skip",
-            "back",
-            "v <percent>",
-            "volume <percent>",
-            "shuffle",
-            "loop [on|off]",
-            "superloop [on|off]",
-            "search",
-            "clear",
-        ].forEach((item) => {
+        SPOTUI_SCHEMES.forEach((scheme, idx) => {
             const row = document.createElement("div");
-            row.className = "popup-row";
-            row.textContent = item;
+            row.className = "popup-row" + (idx === popupSchemeSelected ? " selected" : "");
+            row.textContent = `${idx + 1}. ${scheme.label}${scheme.id === popupSchemeOriginal ? " (current)" : ""}`;
             listEl.appendChild(row);
         });
+        popup.addEventListener("keydown", handleThemeKeydown);
+        popup.focus();
+        scrollSelectedPopupRowIntoView();
+    } else if (popupMode === "help") {
+        const category = HELP_CATEGORIES[popupHelpCategory];
+        const title = category
+            ? `Help / ${category.label} \u2014 \u2191/\u2193 move \u00b7 Esc back`
+            : `Help \u2014 \u2191/\u2193 move \u00b7 Enter open \u00b7 Esc close`;
+
+        popup.innerHTML = `<div id="popup-list"></div>`;
+        const titleEl = document.createElement("div");
+        titleEl.className = "popup-title";
+        titleEl.textContent = title;
+        popup.prepend(titleEl);
+        document.body.appendChild(popup);
+
+        const listEl = popup.querySelector("#popup-list");
+        const rows = category
+            ? category.entries.map((entry) => [entry[0], entry[1]])
+            : HELP_CATEGORIES.map((item) => [item.label, `${item.entries.length} commands`]);
+
+        rows.forEach(([usage, description], idx) => {
+            const row = document.createElement("div");
+            row.className = "popup-row" + (idx === popupHelpSelected ? " selected" : "");
+
+            const cmd = document.createElement("span");
+            cmd.className = "popup-row-cmd";
+            cmd.textContent = usage;
+
+            const desc = document.createElement("span");
+            desc.className = "popup-row-desc";
+            desc.textContent = description;
+
+            row.append(cmd, desc);
+            listEl.appendChild(row);
+        });
+
         popup.addEventListener("keydown", handleHelpKeydown);
         popup.focus();
+        scrollSelectedPopupRowIntoView();
     }
 }
 
@@ -1427,6 +2225,14 @@ function handleTrackListKeydown(e) {
             lastQueueSnapshot = popupTracks.slice();
         }
         closePopup();
+    } else if (e.key === "a" || e.key === "A") {
+        e.preventDefault();
+        const track = popupTracks[popupTrackSelected];
+        if (track?.uri) {
+            queueTrack(track.uri)
+                .then(() => print(`Queued: ${formatTrackLabel(track)}`))
+                .catch((err) => print("Queue error: " + err.message, "error"));
+        }
     } else if (e.key === "Escape") {
         e.preventDefault();
         closePopup();
@@ -1434,11 +2240,63 @@ function handleTrackListKeydown(e) {
     scrollSelectedPopupRowIntoView();
 }
 
-function handleHelpKeydown(e) {
-    if (e.key === "Escape" || e.key === "Enter") {
+function handleThemeKeydown(e) {
+    if (e.key === "ArrowDown" || e.key === "ArrowUp") {
         e.preventDefault();
+        const delta = e.key === "ArrowDown" ? 1 : -1;
+        popupSchemeSelected = (popupSchemeSelected + delta + SPOTUI_SCHEMES.length) % SPOTUI_SCHEMES.length;
+        applyScheme(SPOTUI_SCHEMES[popupSchemeSelected].id);
+        renderPopup();
+    } else if (e.key === "Enter") {
+        e.preventDefault();
+        const scheme = SPOTUI_SCHEMES[popupSchemeSelected];
+        applyScheme(scheme.id);
+        storeScheme(scheme.id);
+        closePopup();
+        print(`Theme: ${scheme.label}`);
+    } else if (e.key === "a" || e.key === "A") {
+        e.preventDefault();
+        applyScheme(null);
+        storeScheme(null);
+        closePopup();
+        print("Theme: following the Spicetify scheme");
+    } else if (e.key === "Escape") {
+        e.preventDefault();
+        applyScheme(popupSchemeOriginal);
         closePopup();
     }
+    scrollSelectedPopupRowIntoView();
+}
+
+function handleHelpKeydown(e) {
+    const category = HELP_CATEGORIES[popupHelpCategory];
+    const length = category ? category.entries.length : HELP_CATEGORIES.length;
+
+    if (e.key === "ArrowDown" || e.key === "ArrowUp") {
+        e.preventDefault();
+        const delta = e.key === "ArrowDown" ? 1 : -1;
+        popupHelpSelected = (popupHelpSelected + delta + length) % length;
+        renderPopup();
+    } else if (e.key === "Enter") {
+        e.preventDefault();
+        if (category) {
+            closePopup();
+            return;
+        }
+        popupHelpCategory = popupHelpSelected;
+        popupHelpSelected = 0;
+        renderPopup();
+    } else if (e.key === "Escape") {
+        e.preventDefault();
+        if (!category) {
+            closePopup();
+            return;
+        }
+        popupHelpSelected = popupHelpCategory;
+        popupHelpCategory = null;
+        renderPopup();
+    }
+    scrollSelectedPopupRowIntoView();
 }
 
 async function handleNewKeydown(e) {
@@ -1450,7 +2308,7 @@ async function handleNewKeydown(e) {
             await Spicetify.Platform.RootlistAPI.createPlaylist(name, {});
             print("Created playlist: " + name);
         } catch (err) {
-            print("Create failed: " + err.message + " (check console)");
+            print("Create failed: " + err.message + " (check console)", "error");
             console.error("Create playlist error:", err);
         }
         playlists = await getPlaylists();
@@ -1465,8 +2323,13 @@ async function handleNewKeydown(e) {
 }
 
 injectStyle();
+applyScheme(readStoredScheme());
+restoreBackdrop();
 setTimeout(createCopyButton, 500);
 setTimeout(initLyricsBridge, 1000);
+
+// Spotify's own stylesheet may land after ours, so re-read the scheme once it settles.
+setTimeout(() => applyScheme(activeSchemeId), 1500);
 
 if (Spicetify?.Platform) {
     createTerminal();
