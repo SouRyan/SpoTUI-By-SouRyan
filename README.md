@@ -12,6 +12,8 @@ It combines:
 ## Screenshot
 
 ![SpoTUI preview](preview.png)
+## 
+![SpoTUI preview](preview2.png)
 ## Features
 
 - Terminal-inspired interface
