@@ -1,7 +1,7 @@
 {
-    "name": "SpoTUI",
+    "name": "SpoTUI SouRyan",
     "description": "Terminal interface for Spotify...",
-    "preview": "preview.png",
+    "preview": "preview2.png",
     "usercss": "user.css",
     "schemes": "color.ini",
     "include": ["https://cdn.jsdelivr.net/gh/SouRyan/SpoTUI@master/theme.js"],
