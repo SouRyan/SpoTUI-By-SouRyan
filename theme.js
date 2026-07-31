@@ -152,6 +152,81 @@ body.spotui-cli-mode #spotui-output {
     display: flex !important;
 }
 
+body.spotui-pane-mode #spotui-logo,
+body.spotui-pane-mode #spotui-output {
+    display: none !important;
+}
+
+body.spotui-pane-mode #spotui-panes {
+    display: flex !important;
+}
+
+#spotui-panes {
+    display: none;
+    flex: 1 1 auto;
+    flex-direction: row;
+    gap: 12px;
+    min-height: 0;
+    position: relative;
+    z-index: 1;
+}
+
+.spotui-pane {
+    flex: 1 1 0;
+    min-width: 0;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+    border: 1px solid rgba(var(--spotui-accent-rgb), 0.28);
+    background: rgba(0, 0, 0, 0.25);
+    outline: none;
+}
+
+.spotui-pane.active {
+    border-color: var(--spotui-accent);
+    box-shadow: inset 0 0 0 1px rgba(var(--spotui-accent-rgb), 0.25);
+}
+
+.spotui-pane-title {
+    color: var(--spotui-accent);
+    font-size: 12px;
+    padding: 8px 10px;
+    border-bottom: 1px solid var(--spotui-divider);
+    flex: 0 0 auto;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.spotui-pane-list {
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow-y: auto;
+    padding: 6px;
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+}
+
+.spotui-pane-list::-webkit-scrollbar {
+    width: 0;
+    height: 0;
+}
+
+.spotui-pane-row {
+    padding: 4px 6px;
+    cursor: default;
+}
+
+.spotui-pane-row.selected {
+    background: var(--spotui-accent);
+    color: var(--spotui-contrast);
+}
+
+.spotui-pane-empty {
+    color: var(--spotui-dim);
+    padding: 8px 6px;
+}
+
 #spotui-output::-webkit-scrollbar {
     width: 0;
     height: 0;
@@ -160,6 +235,7 @@ body.spotui-cli-mode #spotui-output {
 #spotui-status {
     min-height: 20px;
     padding: 2px 0;
+    margin-top: auto;
     color: var(--spotui-muted);
     font-size: 13px;
     white-space: pre-wrap;
@@ -167,6 +243,7 @@ body.spotui-cli-mode #spotui-output {
     z-index: 1;
     opacity: 0;
     transition: opacity 200ms ease;
+    flex: 0 0 auto;
 }
 
 #spotui-status.visible {
@@ -177,12 +254,113 @@ body.spotui-cli-mode #spotui-output {
     color: var(--spotui-error);
 }
 
+#spotui-nowplaying {
+    position: relative;
+    z-index: 1;
+    margin-top: 8px;
+    padding: 10px 12px;
+    border: 1px solid rgba(var(--spotui-accent-rgb), 0.28);
+    background: rgba(var(--spotui-accent-rgb), 0.06);
+    font-size: 13px;
+    line-height: 1.45;
+    user-select: text;
+    flex: 0 0 auto;
+}
+
+#spotui-nowplaying.empty {
+    color: var(--spotui-dim);
+    border-style: dashed;
+}
+
+.spotui-np-row {
+    display: flex;
+    align-items: baseline;
+    gap: 10px;
+    min-width: 0;
+}
+
+.spotui-np-row + .spotui-np-row {
+    margin-top: 4px;
+}
+
+.spotui-np-state {
+    color: var(--spotui-accent);
+    flex: 0 0 auto;
+    min-width: 1.5ch;
+}
+
+.spotui-np-title {
+    color: var(--spotui-text);
+    flex: 1 1 auto;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.spotui-np-meta {
+    color: var(--spotui-muted);
+    flex: 0 1 auto;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 45%;
+}
+
+.spotui-np-bar {
+    flex: 1 1 auto;
+    min-width: 80px;
+    max-width: 220px;
+    display: flex;
+    align-items: center;
+}
+
+.spotui-np-bar-track {
+    display: block;
+    width: 100%;
+    height: 5px;
+    border-radius: 999px;
+    background: rgba(var(--spotui-accent-rgb), 0.14);
+    box-shadow: inset 0 0 0 1px rgba(var(--spotui-accent-rgb), 0.22);
+    overflow: hidden;
+}
+
+.spotui-np-bar-fill {
+    display: block;
+    height: 100%;
+    width: 0%;
+    border-radius: inherit;
+    background: linear-gradient(
+        90deg,
+        rgba(var(--spotui-accent-rgb), 0.75),
+        var(--spotui-accent)
+    );
+    box-shadow: 0 0 8px rgba(var(--spotui-accent-rgb), 0.35);
+    transition: width 80ms linear;
+}
+
+#spotui-nowplaying.empty .spotui-np-bar-track {
+    background: rgba(255, 255, 255, 0.04);
+    box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.08);
+}
+
+#spotui-nowplaying.empty .spotui-np-bar-fill {
+    width: 0% !important;
+    box-shadow: none;
+}
+
+.spotui-np-clock {
+    color: var(--spotui-muted);
+    flex: 0 0 auto;
+    white-space: nowrap;
+}
+
 #spotui-footer {
     display: flex;
     align-items: center;
     gap: 12px;
     padding-top: 12px;
-    margin-top: auto;
+    margin-top: 0;
     border-top: 1px solid rgba(var(--spotui-accent-rgb), 0.18);
     position: relative;
     z-index: 1;
@@ -227,6 +405,10 @@ body.spotui-cli-mode #spotui-output {
 
 body.spotui-tui-hidden #spotui-tui {
     display: none !important;
+}
+
+body.spotui-bar-hidden #spotui-tui {
+    bottom: 0;
 }
 
 body.spotui-tui-hidden #spotui-popup {
@@ -330,9 +512,16 @@ const SCHEME_SURFACE_TOKENS = ["bg", "surface", "text", "muted", "divider", "err
 
 const BACKDROP_STORAGE_KEY = "spotui:backdrop";
 const BACKDROP_OPACITY_STORAGE_KEY = "spotui:backdrop-opacity";
+const BAR_STORAGE_KEY = "spotui:player-bar-hidden";
+const PIP_WIDTH = 320;
+const PIP_HEIGHT = 420;
 
 let backdropUrl = "";
 let backdropOpacity = 0.35;
+let playerBarHidden = false;
+let pipWindow = null;
+let pipEventsBound = false;
+let pipProgressRaf = null;
 
 let accentHsl = rgbToHsl(DEFAULT_ACCENT);
 let activeSchemeId = null;
@@ -1119,7 +1308,28 @@ function createTerminal() {
 Type /help
 
 </div>
+<div id="spotui-panes" hidden>
+<div class="spotui-pane" id="spotui-pane-left" tabindex="0">
+<div class="spotui-pane-title"></div>
+<div class="spotui-pane-list"></div>
+</div>
+<div class="spotui-pane" id="spotui-pane-right" tabindex="0">
+<div class="spotui-pane-title"></div>
+<div class="spotui-pane-list"></div>
+</div>
+</div>
 <div id="spotui-status"></div>
+<div id="spotui-nowplaying" class="empty" aria-live="polite">
+<div class="spotui-np-row">
+<span class="spotui-np-state">-</span>
+<span class="spotui-np-title">Nothing playing</span>
+<span class="spotui-np-meta"></span>
+</div>
+<div class="spotui-np-row">
+<span class="spotui-np-bar"><span class="spotui-np-bar-track"><span class="spotui-np-bar-fill"></span></span></span>
+<span class="spotui-np-clock"></span>
+</div>
+</div>
 <div id="spotui-footer">
 <span class="prompt">></span>
 <input id="spotui-input" autofocus placeholder="type help for a list of commands">
@@ -1128,9 +1338,25 @@ Type /help
     document.body.appendChild(box);
     initAsciiAnimation();
     renderBackdrop();
+    initNowPlayingBar();
+    initPanes();
 
     const input = document.getElementById("spotui-input");
     input.addEventListener("keydown", async (e) => {
+        if (paneMode && (e.key === "Escape" || e.key === "Tab")) {
+            e.preventDefault();
+            if (e.key === "Escape") {
+                if (paneMode === "browse" && paneDrilledDown) {
+                    clearPaneRight();
+                    return;
+                }
+                closePanes();
+                return;
+            }
+            focusPane(e.shiftKey ? "left" : "right");
+            return;
+        }
+
         if (e.key === "Enter") {
             const cmd = input.value.trim();
             input.value = "";
@@ -1355,6 +1581,16 @@ async function execute(cmd) {
         return;
     }
 
+    if (command === "bar") {
+        handlePlayerBarCommand(argText);
+        return;
+    }
+
+    if (command === "mini") {
+        await handleMiniCommand(argText);
+        return;
+    }
+
     if (command === "skip") {
         try {
             Spicetify.Player.next();
@@ -1446,7 +1682,7 @@ const HELP_CATEGORIES = [
             ["list", "tracks of the playing playlist"],
             ["queue", "current queue"],
             ["like | unlike", "save or remove the current track", "like", "unlike"],
-            ["np | info", "show what is playing", "np", "info"],
+            ["np | info", "show what is playing (also on the fixed bar)", "np", "info"],
             ["lyrics", "toggle the lyrics panel"],
         ],
     },
@@ -1456,6 +1692,8 @@ const HELP_CATEGORIES = [
         entries: [
             ["theme [name|auto]", "switch color scheme live; no name opens the picker"],
             ["bg <url|off>", "image behind the logo screen; bg opacity <0-100>"],
+            ["bar [on|off]", "show or hide Spotify's bottom player bar"],
+            ["mini [on|off]", "open floating SpoTUI miniplayer window with GIF"],
             ["tui -m [command|cli]", "switch interface mode"],
             ["clear", "clear the log"],
             ["help [category|command]", "this list"],
@@ -1489,7 +1727,7 @@ function findHelpTarget(query) {
 }
 
 let popup = null;
-let popupMode = "list";
+let popupMode = null;
 let playlists = [];
 let popupSelected = 0;
 let popupTracks = [];
@@ -1502,6 +1740,16 @@ let popupHelpSelected = 0;
 let popupHelpCategory = null;
 let lastPlaylistContextUri = null;
 let lastQueueSnapshot = null;
+
+let paneMode = null;
+let paneFocus = "left";
+let paneRightLoaded = false;
+let paneDrilledDown = false;
+let paneLeftItems = [];
+let paneSearchQuery = "";
+let panesBound = false;
+let paneLoadSeq = 0;
+let panePreviewTimer = null;
 
 function openHelpPopup(query) {
     const target = query ? findHelpTarget(query) : null;
@@ -1809,12 +2057,15 @@ async function openSearchPopup(query) {
             print(`No results for "${query}".`, "error");
             return;
         }
+        paneSearchQuery = query;
+        paneLeftItems = [{ name: `Results for "${query}"`, uri: null }];
+        popupSelected = 0;
         popupTracks = tracks;
         popupTrackTitle = `Search: ${query}`;
         popupTrackContext = null;
         popupTrackSelected = 0;
-        popupMode = "tracks";
-        renderPopup();
+        paneRightLoaded = true;
+        openPanes("search", "right");
         print(`${tracks.length} result${tracks.length === 1 ? "" : "s"} for "${query}"`);
     } catch (err) {
         print("Search error: " + err.message, "error");
@@ -1855,35 +2106,166 @@ function formatTrackLabel(track) {
 }
 
 function renderProgressBar(percent, width = 24) {
-    const filled = Math.round(clampNumber(percent, 0, 1) * width);
-    return `[${"\u2588".repeat(filled)}${"\u2591".repeat(width - filled)}]`;
+    const p = clampNumber(percent, 0, 1);
+    const exact = p * width;
+    const full = Math.floor(exact);
+    const partials = ["", "\u258F", "\u258E", "\u258D", "\u258C", "\u258B", "\u258A", "\u2589"];
+    const partialIdx = Math.min(7, Math.round((exact - full) * 8));
+    const partial = full < width && partialIdx > 0 ? partials[partialIdx] : "";
+    const rest = Math.max(width - full - (partial ? 1 : 0), 0);
+    // Text form for cli / np dump: smooth partial block + clean dashes for the rest.
+    return `[${"\u2588".repeat(full)}${partial}${"\u2500".repeat(rest)}]`;
+}
+
+function setNowPlayingProgressEl(el, percent) {
+    if (!el) return;
+    let fill = el.querySelector(".spotui-np-bar-fill");
+    if (!fill) {
+        el.innerHTML = `<span class="spotui-np-bar-track"><span class="spotui-np-bar-fill"></span></span>`;
+        fill = el.querySelector(".spotui-np-bar-fill");
+    }
+    fill.style.width = `${clampNumber(percent, 0, 1) * 100}%`;
+}
+
+const REPEAT_LABELS = ["off", "all", "one"];
+const NP_PROGRESS_WIDTH = 28;
+
+let nowPlayingEls = null;
+let nowPlayingBound = false;
+let nowPlayingRaf = null;
+let nowPlayingLastTrackUri = "";
+
+function getNowPlayingEls() {
+    if (nowPlayingEls?.root?.isConnected) return nowPlayingEls;
+    const root = document.getElementById("spotui-nowplaying");
+    if (!root) return null;
+    nowPlayingEls = {
+        root,
+        state: root.querySelector(".spotui-np-state"),
+        title: root.querySelector(".spotui-np-title"),
+        meta: root.querySelector(".spotui-np-meta"),
+        bar: root.querySelector(".spotui-np-bar"),
+        clock: root.querySelector(".spotui-np-clock"),
+    };
+    return nowPlayingEls;
+}
+
+function getNowPlayingSnapshot() {
+    const item = Spicetify.Player?.data?.item;
+    if (!item?.uri) {
+        return {
+            empty: true,
+            state: "-",
+            title: "Nothing playing",
+            meta: "",
+            bar: renderProgressBar(0, NP_PROGRESS_WIDTH),
+            progress: 0,
+            clock: "",
+            uri: "",
+        };
+    }
+
+    const track = normalizeTrackItem(item);
+    const progress = Spicetify.Player.getProgress() || 0;
+    const duration = Spicetify.Player.getDuration() || 0;
+    const ratio = duration ? progress / duration : 0;
+    const playing = Spicetify.Player.isPlaying();
+    const repeat = REPEAT_LABELS[Spicetify.Player.getRepeat()] ?? "off";
+
+    return {
+        empty: false,
+        state: playing ? ">" : "||",
+        title: formatTrackLabel(track),
+        meta:
+            `vol ${Math.round(Spicetify.Player.getVolume() * 100)}%` +
+            ` · shuf ${Spicetify.Player.getShuffle() ? "on" : "off"}` +
+            ` · rep ${repeat}` +
+            ` · ${Spicetify.Player.getHeart() ? "liked" : "like"}`,
+        bar: renderProgressBar(ratio, NP_PROGRESS_WIDTH),
+        progress: ratio,
+        clock: `${Spicetify.Player.formatTime(progress)} / ${Spicetify.Player.formatTime(duration)}`,
+        uri: item.uri,
+    };
+}
+
+function renderNowPlayingBar(snapshot) {
+    const els = getNowPlayingEls();
+    if (!els) return;
+
+    const data = snapshot || getNowPlayingSnapshot();
+    els.root.classList.toggle("empty", data.empty);
+    if (els.state) els.state.textContent = data.state;
+    if (els.title) els.title.textContent = data.title;
+    if (els.meta) els.meta.textContent = data.meta;
+    setNowPlayingProgressEl(els.bar, data.progress || 0);
+    if (els.clock) els.clock.textContent = data.clock;
+    nowPlayingLastTrackUri = data.uri;
+}
+
+function scheduleNowPlayingProgress() {
+    if (nowPlayingRaf !== null) return;
+    nowPlayingRaf = requestAnimationFrame(() => {
+        nowPlayingRaf = null;
+        const els = getNowPlayingEls();
+        if (!els) return;
+
+        const item = Spicetify.Player?.data?.item;
+        if (!item?.uri) {
+            if (nowPlayingLastTrackUri) renderNowPlayingBar();
+            return;
+        }
+
+        // Progress ticks only need the bar/clock/state; full redraws happen on songchange.
+        if (item.uri !== nowPlayingLastTrackUri) {
+            renderNowPlayingBar();
+            return;
+        }
+
+        const progress = Spicetify.Player.getProgress() || 0;
+        const duration = Spicetify.Player.getDuration() || 0;
+        if (els.state) els.state.textContent = Spicetify.Player.isPlaying() ? ">" : "||";
+        setNowPlayingProgressEl(els.bar, duration ? progress / duration : 0);
+        if (els.clock) {
+            els.clock.textContent =
+                `${Spicetify.Player.formatTime(progress)} / ${Spicetify.Player.formatTime(duration)}`;
+        }
+    });
+}
+
+function initNowPlayingBar() {
+    renderNowPlayingBar();
+    if (nowPlayingBound || !Spicetify.Player?.addEventListener) return;
+    nowPlayingBound = true;
+
+    Spicetify.Player.addEventListener("songchange", () => renderNowPlayingBar());
+    Spicetify.Player.addEventListener("onplaypause", () => renderNowPlayingBar());
+    Spicetify.Player.addEventListener("onprogress", () => scheduleNowPlayingProgress());
+
+    // Volume/shuffle/repeat do not always emit player events; poll lightly while visible.
+    setInterval(() => {
+        if (document.body?.classList.contains("spotui-tui-hidden")) return;
+        if (!document.getElementById("spotui-nowplaying")) return;
+        renderNowPlayingBar();
+    }, 2000);
 }
 
 function handleNowPlayingCommand() {
-    const item = Spicetify.Player.data?.item;
-    if (!item) {
+    const snapshot = getNowPlayingSnapshot();
+    renderNowPlayingBar(snapshot);
+
+    if (snapshot.empty) {
         print("Nothing is playing.", "error");
         return;
     }
 
-    const track = normalizeTrackItem(item);
-    const progress = Spicetify.Player.getProgress();
-    const duration = Spicetify.Player.getDuration();
-    const clock = `${Spicetify.Player.formatTime(progress)} / ${Spicetify.Player.formatTime(duration)}`;
-    const album = item.album?.name || item.metadata?.album_title || "";
-    const repeatLabels = ["off", "all", "one"];
+    const item = Spicetify.Player.data?.item;
+    const album = item?.album?.name || item?.metadata?.album_title || "";
 
-    print(formatTrackLabel(track), "log");
+    print(snapshot.title, "log");
     if (album) print(`Album: ${album}`, "log");
-    print(`${renderProgressBar(duration ? progress / duration : 0)} ${clock}`, "log");
-    print(
-        `volume ${Math.round(Spicetify.Player.getVolume() * 100)}%` +
-            ` | shuffle ${Spicetify.Player.getShuffle() ? "on" : "off"}` +
-            ` | repeat ${repeatLabels[Spicetify.Player.getRepeat()] ?? "off"}` +
-            ` | ${Spicetify.Player.getHeart() ? "liked" : "not liked"}`,
-        "log"
-    );
-    setStatus(`${formatTrackLabel(track)}  ${clock}`);
+    print(`${snapshot.bar} ${snapshot.clock}`, "log");
+    print(snapshot.meta.replace(/ · /g, " | "), "log");
+    setStatus(`${snapshot.title}  ${snapshot.clock}`);
 }
 
 function handleHeartCommand(shouldLike) {
@@ -2039,6 +2421,7 @@ function setBackdrop(url, opacity) {
     }
 
     renderBackdrop();
+    syncPipBackdrop();
 }
 
 function restoreBackdrop() {
@@ -2049,6 +2432,565 @@ function restoreBackdrop() {
     } catch {
         backdropUrl = "";
     }
+}
+
+function setPlayerBarHidden(hidden) {
+    playerBarHidden = !!hidden;
+    document.body.classList.toggle("spotui-bar-hidden", playerBarHidden);
+    try {
+        localStorage.setItem(BAR_STORAGE_KEY, playerBarHidden ? "1" : "0");
+    } catch {
+        /* ignore */
+    }
+}
+
+function restorePlayerBar() {
+    try {
+        setPlayerBarHidden(localStorage.getItem(BAR_STORAGE_KEY) === "1");
+    } catch {
+        setPlayerBarHidden(false);
+    }
+}
+
+function handlePlayerBarCommand(arg) {
+    const mode = arg.trim().toLowerCase();
+    if (!mode) {
+        setPlayerBarHidden(!playerBarHidden);
+        print(playerBarHidden ? "Player bar hidden" : "Player bar visible");
+        return;
+    }
+    if (mode === "off" || mode === "hide" || mode === "hidden") {
+        setPlayerBarHidden(true);
+        print("Player bar hidden");
+        return;
+    }
+    if (mode === "on" || mode === "show" || mode === "visible") {
+        setPlayerBarHidden(false);
+        print("Player bar visible");
+        return;
+    }
+    if (mode === "toggle") {
+        setPlayerBarHidden(!playerBarHidden);
+        print(playerBarHidden ? "Player bar hidden" : "Player bar visible");
+        return;
+    }
+    print("Usage: bar [on|off]", "error");
+}
+
+function isPipOpen() {
+    return !!(pipWindow && !pipWindow.closed);
+}
+
+function getCoverArtUrl() {
+    const item = Spicetify.Player?.data?.item;
+    if (!item) return "";
+    return (
+        item.album?.images?.[0]?.url ||
+        item.images?.[0]?.url ||
+        item.metadata?.image_xlarge_url ||
+        item.metadata?.image_large_url ||
+        item.metadata?.image_url ||
+        ""
+    );
+}
+
+function getActiveSchemeColors() {
+    return SPOTUI_SCHEMES.find((scheme) => scheme.id === activeSchemeId) || SPOTUI_SCHEMES[0];
+}
+
+function closeSpotuiPip() {
+    if (isPipOpen()) {
+        try {
+            pipWindow.close();
+        } catch {
+            /* ignore */
+        }
+    }
+    pipWindow = null;
+}
+
+function bindPipEvents() {
+    if (pipEventsBound || !Spicetify.Player?.addEventListener) return;
+    pipEventsBound = true;
+    Spicetify.Player.addEventListener("songchange", () => renderSpotuiPip());
+    Spicetify.Player.addEventListener("onplaypause", () => renderSpotuiPip());
+    Spicetify.Player.addEventListener("onprogress", () => schedulePipProgress());
+}
+
+function schedulePipProgress() {
+    if (pipProgressRaf !== null) return;
+    pipProgressRaf = requestAnimationFrame(() => {
+        pipProgressRaf = null;
+        if (!isPipOpen()) return;
+        const progress = Spicetify.Player.getProgress() || 0;
+        const duration = Spicetify.Player.getDuration() || 0;
+        const fill = pipWindow.document.getElementById("spotui-pip-fill");
+        const clock = pipWindow.document.getElementById("spotui-pip-clock");
+        if (fill) fill.style.width = `${duration ? (progress / duration) * 100 : 0}%`;
+        if (clock) {
+            clock.textContent =
+                `${Spicetify.Player.formatTime(progress)} / ${Spicetify.Player.formatTime(duration)}`;
+        }
+    });
+}
+
+function syncPipBackdrop() {
+    if (!isPipOpen()) return;
+    const bg = pipWindow.document.getElementById("spotui-pip-bg");
+    if (!bg) return;
+    if (backdropUrl) {
+        bg.style.backgroundImage = `url("${backdropUrl.replace(/["\\]/g, encodeURIComponent)}")`;
+        bg.style.opacity = String(backdropOpacity);
+    } else {
+        bg.style.backgroundImage = "";
+        bg.style.opacity = "0";
+    }
+}
+
+function renderSpotuiPip() {
+    if (!isPipOpen()) return;
+    const doc = pipWindow.document;
+    const item = Spicetify.Player?.data?.item;
+    const track = item ? normalizeTrackItem(item) : null;
+    const playing = !!Spicetify.Player?.isPlaying?.();
+    const progress = Spicetify.Player?.getProgress?.() || 0;
+    const duration = Spicetify.Player?.getDuration?.() || 0;
+    const cover = getCoverArtUrl();
+
+    const title = doc.getElementById("spotui-pip-title");
+    const artist = doc.getElementById("spotui-pip-artist");
+    const play = doc.getElementById("spotui-pip-play");
+    const art = doc.getElementById("spotui-pip-art");
+    const fill = doc.getElementById("spotui-pip-fill");
+    const clock = doc.getElementById("spotui-pip-clock");
+
+    if (title) title.textContent = track?.name || "Nothing playing";
+    if (artist) artist.textContent = track?.artist || "";
+    if (play) play.textContent = playing ? "||" : ">";
+    if (art) {
+        if (cover) {
+            art.style.backgroundImage = `url("${cover.replace(/["\\]/g, encodeURIComponent)}")`;
+            art.classList.add("has-art");
+        } else {
+            art.style.backgroundImage = "";
+            art.classList.remove("has-art");
+        }
+    }
+    if (fill) fill.style.width = `${duration ? (progress / duration) * 100 : 0}%`;
+    if (clock) {
+        clock.textContent =
+            `${Spicetify.Player.formatTime(progress)} / ${Spicetify.Player.formatTime(duration)}`;
+    }
+    syncPipBackdrop();
+}
+
+function updatePipLayout(win) {
+    if (!win || win.closed) return;
+    const body = win.document.body;
+    if (!body) return;
+    const width = win.innerWidth || 0;
+    const height = win.innerHeight || 0;
+    const row = height < 360 || (width >= height && height < 420);
+    const tiny = height < 230 || width < 250;
+    body.classList.toggle("layout-row", row);
+    body.classList.toggle("layout-tiny", tiny);
+}
+
+function seekFromPipProgress(event) {
+    try {
+        const duration = Spicetify.Player.getDuration() || 0;
+        if (!duration) return;
+        const bar = event.currentTarget;
+        const rect = bar.getBoundingClientRect();
+        const ratio = clampNumber((event.clientX - rect.left) / rect.width, 0, 1);
+        Spicetify.Player.seek(Math.round(ratio * duration));
+    } catch {
+        /* ignore */
+    }
+}
+
+function setupSpotuiPip(win) {
+    const scheme = getActiveSchemeColors();
+    const doc = win.document;
+    doc.open();
+    doc.write(`<!DOCTYPE html><html><head><meta charset="utf-8"><title>SpoTUI</title>
+<style>
+html, body {
+  margin: 0;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  background: ${scheme.bg};
+  color: ${scheme.text};
+  font-family: "JetBrains Mono", "Fira Code", monospace;
+  user-select: none;
+}
+#spotui-pip-bg {
+  position: absolute;
+  inset: 0;
+  background-position: center;
+  background-repeat: no-repeat;
+  background-size: cover;
+  opacity: 0;
+  pointer-events: none;
+  z-index: 0;
+}
+#spotui-pip-dim {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(180deg, rgba(0,0,0,0.18) 0%, rgba(0,0,0,0.7) 65%, rgba(0,0,0,0.92) 100%);
+  pointer-events: none;
+  z-index: 0;
+}
+#spotui-pip-ui {
+  position: relative;
+  z-index: 1;
+  height: 100%;
+  box-sizing: border-box;
+  padding: 40px 14px 14px;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  gap: 12px;
+  pointer-events: auto;
+}
+#spotui-pip-drag {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 34px;
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 12px;
+  cursor: grab;
+  color: ${scheme.accent};
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  background: linear-gradient(180deg, rgba(0,0,0,0.55), rgba(0,0,0,0));
+}
+#spotui-pip-drag:active {
+  cursor: grabbing;
+}
+#spotui-pip-drag-hint {
+  color: ${scheme.muted};
+  font-size: 10px;
+  letter-spacing: 0;
+  opacity: 0.8;
+}
+#spotui-pip-main {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  min-width: 0;
+  min-height: 0;
+}
+#spotui-pip-art {
+  width: min(42vw, 120px);
+  height: min(42vw, 120px);
+  border: 1px solid ${scheme.accent};
+  background: ${scheme.surface};
+  background-size: cover;
+  background-position: center;
+  flex: 0 0 auto;
+}
+#spotui-pip-art.has-art {
+  box-shadow: 0 0 0 1px rgba(0,0,0,0.4);
+}
+#spotui-pip-meta {
+  min-width: 0;
+  flex: 1 1 auto;
+}
+#spotui-pip-title {
+  font-size: clamp(12px, 3.6vw, 15px);
+  font-weight: 600;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+#spotui-pip-artist {
+  font-size: clamp(10px, 3vw, 12px);
+  color: ${scheme.muted};
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  margin-top: 2px;
+}
+#spotui-pip-progress {
+  height: 6px;
+  border-radius: 999px;
+  background: rgba(255,255,255,0.1);
+  box-shadow: inset 0 0 0 1px ${scheme.divider};
+  margin-top: 8px;
+  cursor: pointer;
+  touch-action: none;
+  overflow: hidden;
+}
+#spotui-pip-fill {
+  height: 100%;
+  width: 0%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, ${scheme.accent}bb, ${scheme.accent});
+  box-shadow: 0 0 8px ${scheme.accent}66;
+  pointer-events: none;
+}
+#spotui-pip-clock {
+  font-size: 10px;
+  color: ${scheme.muted};
+  margin-top: 4px;
+}
+#spotui-pip-controls {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  flex: 0 0 auto;
+}
+#spotui-pip-controls button {
+  appearance: none;
+  border: 1px solid transparent;
+  background: rgba(0,0,0,0.35);
+  color: ${scheme.accent};
+  font-family: inherit;
+  font-size: 16px;
+  cursor: pointer;
+  padding: 8px 14px;
+  min-width: 48px;
+  min-height: 40px;
+}
+#spotui-pip-controls button:hover {
+  border-color: ${scheme.accent};
+  background: rgba(0,0,0,0.55);
+}
+#spotui-pip-play {
+  font-size: 18px !important;
+  min-width: 56px;
+}
+
+/* Wide / short window: cover beside title */
+body.layout-row #spotui-pip-ui {
+  justify-content: center;
+  gap: 10px;
+  padding: 36px 12px 12px;
+}
+body.layout-row #spotui-pip-main {
+  flex-direction: row;
+  align-items: center;
+  gap: 12px;
+}
+body.layout-row #spotui-pip-art {
+  width: 72px;
+  height: 72px;
+}
+body.layout-row #spotui-pip-drag {
+  height: 28px;
+  font-size: 10px;
+}
+
+/* Very small window */
+body.layout-tiny #spotui-pip-ui {
+  padding: 30px 8px 8px;
+  gap: 6px;
+}
+body.layout-tiny #spotui-pip-drag-hint {
+  display: none;
+}
+body.layout-tiny #spotui-pip-main {
+  flex-direction: row;
+  align-items: center;
+  gap: 8px;
+}
+body.layout-tiny #spotui-pip-art {
+  width: 44px;
+  height: 44px;
+}
+body.layout-tiny #spotui-pip-progress {
+  height: 6px;
+  margin-top: 4px;
+}
+body.layout-tiny #spotui-pip-clock {
+  display: none;
+}
+body.layout-tiny #spotui-pip-controls button {
+  min-width: 40px;
+  min-height: 34px;
+  padding: 6px 10px;
+  font-size: 14px;
+}
+</style></head><body>
+<div id="spotui-pip-bg"></div>
+<div id="spotui-pip-dim"></div>
+<div id="spotui-pip-ui">
+  <div id="spotui-pip-drag" title="Drag to move">
+    <span>SpoTUI</span>
+    <span id="spotui-pip-drag-hint">drag here</span>
+  </div>
+  <div id="spotui-pip-main">
+    <div id="spotui-pip-art"></div>
+    <div id="spotui-pip-meta">
+      <div id="spotui-pip-title">Nothing playing</div>
+      <div id="spotui-pip-artist"></div>
+      <div id="spotui-pip-progress"><div id="spotui-pip-fill"></div></div>
+      <div id="spotui-pip-clock">0:00 / 0:00</div>
+    </div>
+  </div>
+  <div id="spotui-pip-controls">
+    <button type="button" id="spotui-pip-prev" title="Previous">&lt;&lt;</button>
+    <button type="button" id="spotui-pip-play" title="Play/Pause">&gt;</button>
+    <button type="button" id="spotui-pip-next" title="Next">&gt;&gt;</button>
+  </div>
+</div>
+</body></html>`);
+    doc.close();
+
+    const bindBtn = (id, action) => {
+        const btn = doc.getElementById(id);
+        if (!btn) return;
+        btn.addEventListener("click", (event) => {
+            event.preventDefault();
+            event.stopPropagation();
+            try { action(); } catch { /* ignore */ }
+        });
+    };
+
+    bindBtn("spotui-pip-prev", () => Spicetify.Player.back());
+    bindBtn("spotui-pip-next", () => Spicetify.Player.next());
+    bindBtn("spotui-pip-play", () => Spicetify.Player.togglePlay());
+
+    const progress = doc.getElementById("spotui-pip-progress");
+    if (progress) {
+        progress.addEventListener("click", seekFromPipProgress);
+    }
+
+    enablePipWindowDrag(win);
+
+    const onResize = () => updatePipLayout(win);
+    win.addEventListener("resize", onResize);
+    if (typeof ResizeObserver !== "undefined") {
+        const ro = new ResizeObserver(onResize);
+        ro.observe(doc.documentElement);
+    }
+    updatePipLayout(win);
+
+    win.addEventListener("pagehide", () => {
+        if (pipWindow === win) pipWindow = null;
+    });
+
+    bindPipEvents();
+    renderSpotuiPip();
+}
+
+function enablePipWindowDrag(win) {
+    const handle = win.document.getElementById("spotui-pip-drag");
+    if (!handle) return;
+
+    let dragging = false;
+    let lastX = 0;
+    let lastY = 0;
+
+    handle.addEventListener("pointerdown", (event) => {
+        if (event.button !== 0) return;
+        dragging = true;
+        lastX = event.screenX;
+        lastY = event.screenY;
+        try {
+            handle.setPointerCapture(event.pointerId);
+        } catch {
+            /* ignore */
+        }
+        event.preventDefault();
+    });
+
+    handle.addEventListener("pointermove", (event) => {
+        if (!dragging) return;
+        const dx = event.screenX - lastX;
+        const dy = event.screenY - lastY;
+        lastX = event.screenX;
+        lastY = event.screenY;
+        if (!dx && !dy) return;
+        try {
+            win.moveBy(dx, dy);
+        } catch {
+            /* Document PiP / locked windows may reject moveBy */
+        }
+    });
+
+    const stopDrag = () => {
+        dragging = false;
+    };
+    handle.addEventListener("pointerup", stopDrag);
+    handle.addEventListener("pointercancel", stopDrag);
+    handle.addEventListener("lostpointercapture", stopDrag);
+}
+
+async function openSpotuiPip() {
+    if (isPipOpen()) {
+        closeSpotuiPip();
+        print("Miniplayer closed");
+        return false;
+    }
+
+    // Prefer a real popup window so the user can drag it around the desktop.
+    try {
+        const left = Math.max((window.screen?.availWidth || 1200) - PIP_WIDTH - 24, 0);
+        pipWindow = window.open(
+            "about:blank",
+            "SpoTUIMiniplayer",
+            `width=${PIP_WIDTH},height=${PIP_HEIGHT},left=${left},top=24,resizable=yes,scrollbars=no,toolbar=no,menubar=no,location=no,status=no`
+        );
+        if (pipWindow) {
+            setupSpotuiPip(pipWindow);
+            print("Miniplayer opened — drag the top bar to move");
+            return true;
+        }
+    } catch (err) {
+        console.warn("SpoTUI popup miniplayer failed, trying Document PiP:", err);
+    }
+
+    if (window.documentPictureInPicture?.requestWindow) {
+        try {
+            pipWindow = await window.documentPictureInPicture.requestWindow({
+                width: PIP_WIDTH,
+                height: PIP_HEIGHT,
+            });
+            setupSpotuiPip(pipWindow);
+            print("Miniplayer opened (PiP) — drag the top bar to move");
+            return true;
+        } catch (err) {
+            console.warn("SpoTUI Document PiP failed:", err);
+        }
+    }
+
+    print("Could not open miniplayer (popup blocked?).", "error");
+    return false;
+}
+
+async function handleMiniCommand(arg) {
+    const mode = arg.trim().toLowerCase();
+    if (!mode || mode === "toggle") {
+        await openSpotuiPip();
+        return;
+    }
+    if (mode === "on" || mode === "true" || mode === "1" || mode === "open") {
+        if (isPipOpen()) {
+            print("Miniplayer already open");
+            return;
+        }
+        await openSpotuiPip();
+        return;
+    }
+    if (mode === "off" || mode === "false" || mode === "0" || mode === "close") {
+        if (!isPipOpen()) {
+            print("Miniplayer already closed");
+            return;
+        }
+        closeSpotuiPip();
+        print("Miniplayer closed");
+        return;
+    }
+    print("Usage: mini [on|off]", "error");
 }
 
 const BACKDROP_USAGE = "Usage: bg <http(s) image url> | bg opacity <0-100> | bg off";
@@ -2174,9 +3116,15 @@ async function openPlaylistPopup() {
         print("Playlist error: " + err.message, "error");
         return;
     }
+    paneLeftItems = playlists.slice();
     popupSelected = 0;
-    popupMode = "list";
-    renderPopup();
+    popupTracks = [];
+    popupTrackTitle = "";
+    popupTrackContext = null;
+    popupTrackSelected = 0;
+    paneRightLoaded = false;
+    openPanes("browse", "left");
+    schedulePlaylistPreview();
 }
 
 async function fetchPlaylistItems(contextUri) {
@@ -2200,6 +3148,70 @@ async function fetchPlaylistItems(contextUri) {
     return items;
 }
 
+function schedulePlaylistPreview() {
+    if (paneMode !== "browse") return;
+    clearTimeout(panePreviewTimer);
+    const playlist = paneLeftItems[popupSelected];
+    if (!playlist?.uri) return;
+
+    popupTrackTitle = playlist.name;
+    popupTracks = [];
+    popupTrackSelected = 0;
+    popupTrackContext = { uri: playlist.uri };
+    paneRightLoaded = true;
+    renderPanes();
+
+    panePreviewTimer = setTimeout(() => {
+        loadPlaylistTracksIntoPane(playlist, { play: false, focusRight: false, silent: true });
+    }, 220);
+}
+
+async function loadPlaylistTracksIntoPane(playlist, { play = false, focusRight = true, silent = false } = {}) {
+    if (!playlist?.uri) return;
+    const seq = ++paneLoadSeq;
+    if (!silent) print(`Loading ${playlist.name}...`);
+    try {
+        const items = await fetchPlaylistItems(playlist.uri);
+        if (seq !== paneLoadSeq) return;
+
+        popupTracks = dedupeTracks(
+            items
+                .filter((item) => item && item.uri && item.isPlayable !== false)
+                .map((item, index) => normalizeTrackItem(item, index))
+        );
+        popupTrackTitle = playlist.name;
+        popupTrackContext = { uri: playlist.uri };
+        lastPlaylistContextUri = playlist.uri;
+        const currentTrackUri = Spicetify.Player.data?.item?.uri;
+        popupTrackSelected = Math.max(findTrackIndexByUri(popupTracks, currentTrackUri), 0);
+        paneRightLoaded = true;
+        if (play || focusRight) paneDrilledDown = true;
+
+        if (play) {
+            Spicetify.Player.playUri(playlist.uri);
+            print("Playing playlist: " + playlist.name);
+        }
+
+        renderPanes();
+        if (focusRight) focusPane("right");
+    } catch (err) {
+        if (seq !== paneLoadSeq) return;
+        print("List error: " + err.message, "error");
+        console.error("Playlist tracks pane error:", err);
+    }
+}
+
+function queueSelectedPaneTrack() {
+    const track = popupTracks[popupTrackSelected];
+    if (!track?.uri) {
+        print("No track selected to queue.", "error");
+        return;
+    }
+    queueTrack(track.uri)
+        .then(() => print(`Queued: ${formatTrackLabel(track)}`))
+        .catch((err) => print("Queue error: " + err.message, "error"));
+}
+
 async function openPlaylistTracksPopup() {
     try {
         const contextUri = getCurrentPlaylistContextUri();
@@ -2207,21 +3219,33 @@ async function openPlaylistTracksPopup() {
             print("List error: not currently playing a playlist.", "error");
             return;
         }
+
+        try {
+            playlists = await getPlaylists();
+        } catch {
+            playlists = [];
+        }
+        paneLeftItems = playlists.slice();
+        const selectedIdx = playlists.findIndex((p) => p.uri === contextUri);
+        popupSelected = Math.max(selectedIdx, 0);
+
         const items = await fetchPlaylistItems(contextUri);
-        popupTracks = items
-            .filter((item) => item && item.uri && item.isPlayable !== false)
-            .map((item, index) => normalizeTrackItem(item, index));
-        popupTracks = dedupeTracks(popupTracks);
-        popupTrackTitle = "Playlist tracks";
+        popupTracks = dedupeTracks(
+            items
+                .filter((item) => item && item.uri && item.isPlayable !== false)
+                .map((item, index) => normalizeTrackItem(item, index))
+        );
+        const current = playlists[popupSelected];
+        popupTrackTitle = current?.name || "Playlist tracks";
         popupTrackContext = Spicetify.Player.data?.context || { uri: contextUri };
         lastPlaylistContextUri = contextUri;
         const currentTrackUri = Spicetify.Player.data?.item?.uri;
         popupTrackSelected = Math.max(findTrackIndexByUri(popupTracks, currentTrackUri), 0);
-        popupMode = "tracks";
-        renderPopup();
+        paneRightLoaded = true;
+        openPanes("browse", "right");
     } catch (err) {
         print("List error: " + err.message, "error");
-        console.error("Playlist tracks popup error:", err);
+        console.error("Playlist tracks pane error:", err);
     }
 }
 
@@ -2262,8 +3286,252 @@ function openQueuePopup() {
     popupTrackTitle = "Queue";
     const currentTrackUri = Spicetify.Player.data?.item?.uri;
     popupTrackSelected = Math.max(findTrackIndexByUri(popupTracks, currentTrackUri), 0);
-    popupMode = "tracks";
-    renderPopup();
+    paneLeftItems = [{ name: `${popupTracks.length} track${popupTracks.length === 1 ? "" : "s"} in queue`, uri: null }];
+    popupSelected = 0;
+    paneRightLoaded = true;
+    openPanes("queue", "right");
+}
+
+function initPanes() {
+    const root = document.getElementById("spotui-panes");
+    if (!root || panesBound) return;
+    panesBound = true;
+    root.addEventListener("keydown", (e) => {
+        handlePaneKeydown(e);
+    });
+}
+
+function openPanes(mode, focus = "left") {
+    paneMode = mode;
+    paneFocus = focus === "right" ? "right" : "left";
+    paneDrilledDown = false;
+    document.body.classList.add("spotui-pane-mode");
+    const root = document.getElementById("spotui-panes");
+    if (root) root.hidden = false;
+    renderPanes();
+    focusPane(paneFocus);
+}
+
+function closePanes() {
+    clearTimeout(panePreviewTimer);
+    panePreviewTimer = null;
+    paneLoadSeq += 1;
+    paneMode = null;
+    paneFocus = "left";
+    paneRightLoaded = false;
+    paneDrilledDown = false;
+    paneLeftItems = [];
+    paneSearchQuery = "";
+    popupTracks = [];
+    popupTrackSelected = 0;
+    popupTrackTitle = "";
+    popupTrackContext = null;
+    document.body.classList.remove("spotui-pane-mode");
+    const root = document.getElementById("spotui-panes");
+    if (root) root.hidden = true;
+    const input = document.getElementById("spotui-input");
+    if (input) input.focus();
+}
+
+function clearPaneRight() {
+    popupTracks = [];
+    popupTrackSelected = 0;
+    popupTrackTitle = "";
+    popupTrackContext = null;
+    paneRightLoaded = false;
+    paneDrilledDown = false;
+    renderPanes();
+    focusPane("left");
+}
+
+function focusPane(side) {
+    paneFocus = side === "right" ? "right" : "left";
+    const left = document.getElementById("spotui-pane-left");
+    const right = document.getElementById("spotui-pane-right");
+    left?.classList.toggle("active", paneFocus === "left");
+    right?.classList.toggle("active", paneFocus === "right");
+    const target = paneFocus === "right" ? right : left;
+    target?.focus();
+    scrollSelectedPaneRowIntoView();
+}
+
+function fillPaneList(listEl, items, selected, formatter, emptyText) {
+    listEl.innerHTML = "";
+    if (!items.length) {
+        const empty = document.createElement("div");
+        empty.className = "spotui-pane-empty";
+        empty.textContent = emptyText;
+        listEl.appendChild(empty);
+        return;
+    }
+    items.forEach((item, idx) => {
+        const row = document.createElement("div");
+        row.className = "spotui-pane-row" + (idx === selected ? " selected" : "");
+        row.textContent = formatter(item, idx);
+        listEl.appendChild(row);
+    });
+}
+
+function renderPanes() {
+    const left = document.getElementById("spotui-pane-left");
+    const right = document.getElementById("spotui-pane-right");
+    if (!left || !right || !paneMode) return;
+
+    const leftTitle = left.querySelector(".spotui-pane-title");
+    const leftList = left.querySelector(".spotui-pane-list");
+    const rightTitle = right.querySelector(".spotui-pane-title");
+    const rightList = right.querySelector(".spotui-pane-list");
+
+    if (paneMode === "browse") {
+        leftTitle.textContent = "Playlists \u2014 \u2191/\u2193 preview \u00b7 Enter play \u00b7 a queue \u00b7 n new \u00b7 Esc";
+        fillPaneList(
+            leftList,
+            paneLeftItems,
+            popupSelected,
+            (p, idx) => `${idx + 1}. ${p.name}`,
+            "No playlists found."
+        );
+    } else if (paneMode === "search") {
+        leftTitle.textContent = "Search \u2014 a queue track \u00b7 Esc close";
+        fillPaneList(
+            leftList,
+            paneLeftItems,
+            popupSelected,
+            (item) => item.name,
+            paneSearchQuery ? `No results for "${paneSearchQuery}".` : "No search."
+        );
+    } else if (paneMode === "queue") {
+        leftTitle.textContent = "Queue \u2014 a re-queue \u00b7 Esc close";
+        fillPaneList(
+            leftList,
+            paneLeftItems,
+            popupSelected,
+            (item) => item.name,
+            "Queue is empty."
+        );
+    }
+
+    if (paneRightLoaded && popupTracks.length) {
+        rightTitle.textContent = `${popupTrackTitle || "Tracks"} \u2014 \u2191/\u2193 \u00b7 Enter play \u00b7 a queue`;
+        fillPaneList(
+            rightList,
+            popupTracks,
+            popupTrackSelected,
+            (track, idx) => `${idx + 1}. ${track.name}${track.artist ? " - " + track.artist : ""}`,
+            "No tracks found."
+        );
+    } else if (paneRightLoaded) {
+        rightTitle.textContent = `${popupTrackTitle || "Tracks"} \u2014 loading...`;
+        fillPaneList(rightList, [], 0, () => "", "Loading tracks...");
+    } else {
+        rightTitle.textContent = "Tracks";
+        fillPaneList(rightList, [], 0, () => "", "Move through playlists to preview tracks.");
+    }
+
+    left.classList.toggle("active", paneFocus === "left");
+    right.classList.toggle("active", paneFocus === "right");
+    scrollSelectedPaneRowIntoView();
+}
+
+function scrollSelectedPaneRowIntoView() {
+    requestAnimationFrame(() => {
+        const paneId = paneFocus === "right" ? "spotui-pane-right" : "spotui-pane-left";
+        const selectedRow = document.querySelector(`#${paneId} .spotui-pane-row.selected`);
+        if (selectedRow?.scrollIntoView) {
+            selectedRow.scrollIntoView({ block: "nearest" });
+        }
+    });
+}
+
+async function handlePaneKeydown(e) {
+    if (!paneMode) return;
+
+    if (e.key === "Tab") {
+        e.preventDefault();
+        focusPane(paneFocus === "left" ? "right" : "left");
+        return;
+    }
+
+    if (e.key === "ArrowLeft") {
+        e.preventDefault();
+        focusPane("left");
+        return;
+    }
+
+    if (e.key === "ArrowRight") {
+        e.preventDefault();
+        focusPane("right");
+        return;
+    }
+
+    if (e.key === "Escape") {
+        e.preventDefault();
+        if (paneMode === "browse" && paneDrilledDown) {
+            clearPaneRight();
+            return;
+        }
+        closePanes();
+        return;
+    }
+
+    // Queue works from either pane whenever a track is selected on the right.
+    if (e.key === "a" || e.key === "A") {
+        e.preventDefault();
+        queueSelectedPaneTrack();
+        return;
+    }
+
+    if (paneFocus === "left") {
+        if (e.key === "ArrowDown" || e.key === "ArrowUp") {
+            e.preventDefault();
+            if (!paneLeftItems.length) return;
+            const delta = e.key === "ArrowDown" ? 1 : -1;
+            popupSelected = (popupSelected + delta + paneLeftItems.length) % paneLeftItems.length;
+            renderPanes();
+            if (paneMode === "browse") schedulePlaylistPreview();
+            return;
+        }
+
+        if (e.key === "Enter") {
+            e.preventDefault();
+            if (paneMode !== "browse") {
+                focusPane("right");
+                return;
+            }
+            clearTimeout(panePreviewTimer);
+            const playlist = paneLeftItems[popupSelected];
+            if (playlist) await loadPlaylistTracksIntoPane(playlist, { play: true, focusRight: true });
+            return;
+        }
+
+        if ((e.key === "n" || e.key === "N") && paneMode === "browse") {
+            e.preventDefault();
+            popupMode = "new";
+            renderPopup();
+        }
+        return;
+    }
+
+    if (e.key === "ArrowDown" || e.key === "ArrowUp") {
+        e.preventDefault();
+        if (!popupTracks.length) return;
+        const delta = e.key === "ArrowDown" ? 1 : -1;
+        popupTrackSelected = (popupTrackSelected + delta + popupTracks.length) % popupTracks.length;
+        renderPanes();
+        return;
+    }
+
+    if (e.key === "Enter") {
+        e.preventDefault();
+        const track = popupTracks[popupTrackSelected];
+        if (track?.uri) {
+            Spicetify.Player.playUri(track.uri, popupTrackContext || undefined);
+            print("Playing: " + track.name);
+        }
+        if (paneMode === "queue") {
+            lastQueueSnapshot = popupTracks.slice();
+        }
+    }
 }
 
 function closePopup() {
@@ -2271,11 +3539,11 @@ function closePopup() {
         popup.remove();
         popup = null;
     }
-    popupMode = "list";
-    popupTracks = [];
-    popupTrackSelected = 0;
-    popupTrackTitle = "";
-    popupTrackContext = null;
+    popupMode = null;
+    if (paneMode) {
+        focusPane(paneFocus);
+        return;
+    }
     const input = document.getElementById("spotui-input");
     if (input) input.focus();
 }
@@ -2286,56 +3554,12 @@ function renderPopup() {
     popup.id = "spotui-popup";
     popup.tabIndex = 0;
 
-    if (popupMode === "list") {
-        popup.innerHTML = `<div class="popup-title">Playlists &mdash; &uarr;/&darr; move &middot; Enter play &middot; n new &middot; Esc close</div><div id="popup-list"></div>`;
-        document.body.appendChild(popup);
-        const listEl = popup.querySelector("#popup-list");
-        if (!playlists.length) {
-            const row = document.createElement("div");
-            row.className = "popup-row";
-            row.textContent = "No playlists found.";
-            listEl.appendChild(row);
-        } else {
-            playlists.forEach((p, idx) => {
-                const row = document.createElement("div");
-                row.className = "popup-row" + (idx === popupSelected ? " selected" : "");
-                row.textContent = `${idx + 1}. ${p.name}`;
-                listEl.appendChild(row);
-            });
-        }
-        popup.addEventListener("keydown", handleListKeydown);
-        popup.focus();
-    } else if (popupMode === "new") {
+    if (popupMode === "new") {
         popup.innerHTML = `<div class="popup-title">New playlist name &mdash; Enter confirm &middot; Esc cancel</div><input id="popup-input" class="popup-input">`;
         document.body.appendChild(popup);
         const inputEl = popup.querySelector("#popup-input");
         inputEl.focus();
         inputEl.addEventListener("keydown", handleNewKeydown);
-    } else if (popupMode === "tracks") {
-        // The title can carry a user-typed search query, so it is set as text rather than markup.
-        popup.innerHTML = `<div id="popup-list"></div>`;
-        const titleEl = document.createElement("div");
-        titleEl.className = "popup-title";
-        titleEl.textContent = `${popupTrackTitle} \u2014 \u2191/\u2193 move \u00b7 Enter play \u00b7 a queue \u00b7 Esc close`;
-        popup.prepend(titleEl);
-        document.body.appendChild(popup);
-        const listEl = popup.querySelector("#popup-list");
-        if (!popupTracks.length) {
-            const row = document.createElement("div");
-            row.className = "popup-row";
-            row.textContent = "No tracks found.";
-            listEl.appendChild(row);
-        } else {
-            popupTracks.forEach((track, idx) => {
-                const row = document.createElement("div");
-                row.className = "popup-row" + (idx === popupTrackSelected ? " selected" : "");
-                row.textContent = `${idx + 1}. ${track.name}${track.artist ? " - " + track.artist : ""}`;
-                listEl.appendChild(row);
-            });
-        }
-        popup.addEventListener("keydown", handleTrackListKeydown);
-        popup.focus();
-        scrollSelectedPopupRowIntoView();
     } else if (popupMode === "themes") {
         popup.innerHTML = `<div class="popup-title">Theme &mdash; &uarr;/&darr; preview &middot; Enter keep &middot; a follow Spicetify &middot; Esc cancel</div><div id="popup-list"></div>`;
         document.body.appendChild(popup);
@@ -2396,70 +3620,6 @@ function scrollSelectedPopupRowIntoView() {
             selectedRow.scrollIntoView({ block: "nearest" });
         }
     });
-}
-
-function handleListKeydown(e) {
-    if (e.key === "ArrowDown") {
-        e.preventDefault();
-        if (playlists.length) popupSelected = (popupSelected + 1) % playlists.length;
-        renderPopup();
-    } else if (e.key === "ArrowUp") {
-        e.preventDefault();
-        if (playlists.length) popupSelected = (popupSelected - 1 + playlists.length) % playlists.length;
-        renderPopup();
-    } else if (e.key === "Enter") {
-        e.preventDefault();
-        const p = playlists[popupSelected];
-        if (p) {
-            lastPlaylistContextUri = p.uri;
-            Spicetify.Player.playUri(p.uri);
-            print("Playing playlist: " + p.name);
-        }
-        closePopup();
-    } else if (e.key === "n" || e.key === "N") {
-        e.preventDefault();
-        popupMode = "new";
-        renderPopup();
-    } else if (e.key === "Escape") {
-        e.preventDefault();
-        closePopup();
-    }
-    scrollSelectedPopupRowIntoView();
-}
-
-function handleTrackListKeydown(e) {
-    if (e.key === "ArrowDown") {
-        e.preventDefault();
-        if (popupTracks.length) popupTrackSelected = (popupTrackSelected + 1) % popupTracks.length;
-        renderPopup();
-    } else if (e.key === "ArrowUp") {
-        e.preventDefault();
-        if (popupTracks.length) popupTrackSelected = (popupTrackSelected - 1 + popupTracks.length) % popupTracks.length;
-        renderPopup();
-    } else if (e.key === "Enter") {
-        e.preventDefault();
-        const track = popupTracks[popupTrackSelected];
-        if (track?.uri) {
-            Spicetify.Player.playUri(track.uri, popupTrackContext || undefined);
-            print("Playing: " + track.name);
-        }
-        if (popupTrackTitle === "Queue") {
-            lastQueueSnapshot = popupTracks.slice();
-        }
-        closePopup();
-    } else if (e.key === "a" || e.key === "A") {
-        e.preventDefault();
-        const track = popupTracks[popupTrackSelected];
-        if (track?.uri) {
-            queueTrack(track.uri)
-                .then(() => print(`Queued: ${formatTrackLabel(track)}`))
-                .catch((err) => print("Queue error: " + err.message, "error"));
-        }
-    } else if (e.key === "Escape") {
-        e.preventDefault();
-        closePopup();
-    }
-    scrollSelectedPopupRowIntoView();
 }
 
 function handleThemeKeydown(e) {
@@ -2534,19 +3694,25 @@ async function handleNewKeydown(e) {
             console.error("Create playlist error:", err);
         }
         playlists = await getPlaylists();
+        paneLeftItems = playlists.slice();
         popupSelected = 0;
-        popupMode = "list";
-        renderPopup();
+        closePopup();
+        if (paneMode === "browse") {
+            renderPanes();
+            focusPane("left");
+        } else {
+            openPanes("browse", "left");
+        }
     } else if (e.key === "Escape") {
         e.preventDefault();
-        popupMode = "list";
-        renderPopup();
+        closePopup();
     }
 }
 
 injectStyle();
 applyScheme(readStoredScheme());
 restoreBackdrop();
+restorePlayerBar();
 setTimeout(createCopyButton, 500);
 setTimeout(initLyricsBridge, 1000);
 

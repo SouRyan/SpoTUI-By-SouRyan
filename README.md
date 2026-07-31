@@ -17,6 +17,7 @@ It combines:
 ## Features
 
 - Terminal-inspired interface
+- Fixed now-playing bar with live progress
 - Built-in playback controls
 - Track search without leaving the terminal
 - Playlist browsing and management
@@ -115,13 +116,13 @@ your command history, and `help` to open the command list in-app.
 
 | Command | Description |
 | --- | --- |
-| `search <terms>` / `s <terms>` | search tracks in a popup; no terms opens the Spotify search |
+| `search <terms>` / `s <terms>` | search tracks in side panes; no terms opens the Spotify search |
 | `add <terms>` | queue the top search result |
-| `playlist` | browse your playlists |
-| `list` | tracks of the playlist currently playing |
-| `queue` | current queue |
+| `playlist` | browse playlists in side panes |
+| `list` | current playlist tracks in side panes |
+| `queue` | current queue in side panes |
 | `like` / `unlike` | save or remove the current track |
-| `np` / `info` | show what is playing, with progress bar |
+| `np` / `info` | dump now-playing details (the bar is always visible) |
 | `lyrics` | toggle the lyrics panel |
 
 ### Interface
@@ -130,6 +131,8 @@ your command history, and `help` to open the command list in-app.
 | --- | --- |
 | `theme [name\|auto]` | switch color scheme; no name opens the picker |
 | `bg <url\|off>` | image or GIF behind the logo screen |
+| `bar [on\|off]` | show or hide Spotify's bottom player bar (no arg toggles) |
+| `mini [on\|off]` | floating SpoTUI miniplayer window (keeps your GIF backdrop) |
 | `tui -m [command\|cli]` | hide or show the command log |
 | `clear` | clear the log |
 | `help [category\|command]` | browse commands by category |
@@ -138,8 +141,14 @@ your command history, and `help` to open the command list in-app.
 category, `Esc` goes back one level and then closes. You can also jump straight in with
 `help library` or `help seek`.
 
-In the playlist, queue and search popups: arrow keys move, `Enter` plays, `a` adds to the
-queue, `n` creates a playlist (playlist list only), and `Esc` closes.
+`playlist`, `list`, `queue` and `search` open a two-pane layout above the now-playing bar
+(left = source, right = tracks). In browse/list, moving through playlists previews their
+tracks on the right automatically; `Enter` on a playlist starts playback. `Tab` /
+`Shift+Tab` or `←`/`→` switch focus; arrows move inside the focused pane; `Enter` on a track
+plays it; `a` queues the selected track from either pane; `n` creates a playlist (browse
+left pane only). After drilling into a playlist with Enter, `Esc` clears the right pane;
+otherwise it exits panes and returns to the logo. `theme`, `help` and new playlist still use
+modal popups.
 
 ## Backdrop
 

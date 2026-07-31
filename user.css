@@ -135,6 +135,10 @@ body.spotui-spotify-enabled .main-appShell-topBar .main-globalNav-searchInputTex
     border-radius: 0 !important;
 }
 
+body.spotui-bar-hidden .Root__now-playing-bar {
+    display: none !important;
+}
+
 .Root__now-playing-bar .main-nowPlayingBar-container,
 .Root__now-playing-bar .main-nowPlayingBar-nowPlayingBar {
     width: 100vw !important;
