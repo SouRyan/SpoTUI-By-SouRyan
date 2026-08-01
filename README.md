@@ -121,8 +121,9 @@ your command history, and `help` to open the command list in-app.
 | `playlist` | browse playlists in side panes |
 | `list` | current playlist tracks in side panes |
 | `queue` | current queue in side panes |
-| `like` / `unlike` | save or remove the current track |
+| `like` / `unlike` | like track / album / playlist (pane selection or now playing) |
 | `np` / `info` | dump now-playing details (the bar is always visible) |
+| `home` / `recent` / `rec` / `top` | Made for you (Daily Mix, Discover Weekly…) + Recents |
 | `lyrics` | toggle the lyrics panel |
 
 ### Interface
@@ -141,14 +142,16 @@ your command history, and `help` to open the command list in-app.
 category, `Esc` goes back one level and then closes. You can also jump straight in with
 `help library` or `help seek`.
 
-`playlist`, `list`, `queue` and `search` open a two-pane layout above the now-playing bar
-(left = source, right = tracks). In browse/list, moving through playlists previews their
-tracks on the right automatically; `Enter` on a playlist starts playback. `Tab` /
-`Shift+Tab` or `←`/`→` switch focus; arrows move inside the focused pane; `Enter` on a track
-plays it; `a` queues the selected track from either pane; `n` creates a playlist (browse
-left pane only). After drilling into a playlist with Enter, `Esc` clears the right pane;
-otherwise it exits panes and returns to the logo. `theme`, `help` and new playlist still use
-modal popups.
+`playlist`, `list`, `queue`, `search` and `home` open a two-pane layout above the now-playing
+bar (left = source, right = tracks). `home` (also `rec` / `top`) loads Spotify’s **Made for
+you** shelves — Daily Mix, Discover Weekly, etc. — plus **Recents** (recent playlists/albums).
+`recent` jumps straight to the Recents block. In browse/home, moving through items previews
+their tracks on the right; `Enter` starts playback. `Tab` / `Shift+Tab` or `←`/`→` switch
+focus; arrows move inside the focused pane; `Enter` on a track plays it; `a` queues the
+selected track from either pane; `l` toggles like on the focused item (track on the right,
+album/playlist on the left); `u` unlikes; `n` creates a playlist (browse left pane only).
+After drilling into an item with Enter, `Esc` clears the right pane; otherwise it exits panes
+and returns to the logo. `theme`, `help` and new playlist still use modal popups.
 
 ## Backdrop
 
