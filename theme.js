@@ -161,6 +161,154 @@ body.spotui-pane-mode #spotui-panes {
     display: flex !important;
 }
 
+body.spotui-lyrics-panel #spotui-logo,
+body.spotui-lyrics-panel #spotui-output,
+body.spotui-lyrics-panel #spotui-panes {
+    display: none !important;
+}
+
+body.spotui-lyrics-panel #spotui-lyrics {
+    display: flex;
+}
+
+#spotui-lyrics {
+    display: none;
+    flex: 1 1 auto;
+    min-height: 0;
+    flex-direction: column;
+    position: relative;
+    z-index: 1;
+    margin: 0 0 8px;
+    border: 1px solid rgba(var(--spotui-accent-rgb), 0.28);
+    background:
+        radial-gradient(120% 80% at 50% 0%, rgba(var(--spotui-accent-rgb), 0.14), transparent 55%),
+        rgba(var(--spotui-accent-rgb), 0.04);
+    overflow: hidden;
+}
+
+.spotui-lyrics-header {
+    flex: 0 0 auto;
+    padding: 16px 22px 12px;
+    border-bottom: 1px solid rgba(var(--spotui-accent-rgb), 0.18);
+}
+
+.spotui-lyrics-kicker {
+    color: var(--spotui-accent);
+    font-size: 11px;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    margin-bottom: 6px;
+}
+
+.spotui-lyrics-track {
+    color: var(--spotui-text);
+    font-size: 18px;
+    font-weight: 600;
+    line-height: 1.3;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.spotui-lyrics-meta {
+    margin-top: 4px;
+    color: var(--spotui-muted);
+    font-size: 12px;
+    letter-spacing: 0.02em;
+}
+
+.spotui-lyrics-viewport {
+    position: relative;
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow: hidden;
+}
+
+.spotui-lyrics-lines {
+    height: 100%;
+    overflow-y: auto;
+    padding: 18vh 28px;
+    scroll-behavior: smooth;
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+    text-align: center;
+}
+
+.spotui-lyrics-lines::-webkit-scrollbar {
+    width: 0;
+    height: 0;
+}
+
+.spotui-lyrics-fade {
+    pointer-events: none;
+    position: absolute;
+    left: 0;
+    right: 0;
+    height: 72px;
+    z-index: 2;
+}
+
+.spotui-lyrics-fade-top {
+    top: 0;
+    background: linear-gradient(180deg, var(--spotui-bg), transparent);
+}
+
+.spotui-lyrics-fade-bottom {
+    bottom: 0;
+    background: linear-gradient(0deg, var(--spotui-bg), transparent);
+}
+
+.spotui-lyrics-line {
+    color: var(--spotui-dim);
+    font-size: 17px;
+    line-height: 1.45;
+    padding: 10px 8px;
+    opacity: 0.45;
+    transform: scale(0.96);
+    transition:
+        color 220ms ease,
+        opacity 220ms ease,
+        transform 220ms ease,
+        text-shadow 220ms ease;
+}
+
+.spotui-lyrics-line.near {
+    color: var(--spotui-muted);
+    opacity: 0.72;
+    transform: scale(0.98);
+}
+
+.spotui-lyrics-line.active {
+    color: var(--spotui-accent);
+    opacity: 1;
+    transform: scale(1.06);
+    font-weight: 600;
+    text-shadow: 0 0 18px rgba(var(--spotui-accent-rgb), 0.35);
+}
+
+.spotui-lyrics-lines.unsynced .spotui-lyrics-line {
+    color: var(--spotui-muted);
+    opacity: 0.9;
+    transform: none;
+    text-align: center;
+}
+
+.spotui-lyrics-empty {
+    color: var(--spotui-muted);
+    font-size: 15px;
+    line-height: 1.6;
+    padding: 18vh 24px;
+    text-align: center;
+}
+
+.spotui-lyrics-empty strong {
+    display: block;
+    color: var(--spotui-accent);
+    font-size: 16px;
+    margin-bottom: 8px;
+    font-weight: 600;
+}
+
 #spotui-panes {
     display: none;
     flex: 1 1 auto;
@@ -480,6 +628,33 @@ body.spotui-tui-hidden #spotui-popup {
     outline: none;
     box-sizing: border-box;
 }
+.popup-swatch {
+    display: inline-block;
+    width: 12px;
+    height: 12px;
+    border: 1px solid var(--spotui-divider);
+    margin-right: 8px;
+    vertical-align: middle;
+    box-sizing: border-box;
+}
+.popup-row.selected .popup-swatch {
+    border-color: var(--spotui-contrast);
+}
+.popup-row-token {
+    display: inline-block;
+    min-width: 10ch;
+}
+.popup-row-hex {
+    color: var(--spotui-muted);
+    margin-left: 6px;
+}
+.popup-row.selected .popup-row-hex {
+    color: var(--spotui-contrast);
+    opacity: 0.8;
+}
+#spotui-popup.theme-custom-popup {
+    width: min(520px, calc(100vw - 32px));
+}
 `;
 
 const SPOTUI_ASCII_ART = [
@@ -507,7 +682,31 @@ const SPOTUI_SCHEMES = [
     { id: "mono", label: "Mono", accent: "#f0f0f0", bg: "#000000", surface: "#0f0f0f", text: "#f0f0f0", muted: "#909090", divider: "#2a2a2a", error: "#ff5555" },
 ];
 
+const CUSTOM_SCHEME_ID = "custom";
+const DEFAULT_CUSTOM_SCHEME = {
+    id: CUSTOM_SCHEME_ID,
+    label: "Custom",
+    accent: "#ff8c42",
+    bg: "#0a0a0a",
+    surface: "#111111",
+    text: "#e6e6e6",
+    muted: "#b3b3b3",
+    divider: "#2a2a2a",
+    error: "#ff5555",
+};
+const SCHEME_COLOR_TOKENS = ["accent", "bg", "surface", "text", "muted", "divider", "error"];
+const SCHEME_TOKEN_LABELS = {
+    accent: "accent",
+    bg: "background",
+    surface: "surface",
+    text: "text",
+    muted: "muted",
+    divider: "divider",
+    error: "error",
+};
+
 const SCHEME_STORAGE_KEY = "spotui:scheme";
+const CUSTOM_SCHEME_STORAGE_KEY = "spotui:custom-scheme";
 const SCHEME_SURFACE_TOKENS = ["bg", "surface", "text", "muted", "divider", "error"];
 
 const BACKDROP_STORAGE_KEY = "spotui:backdrop";
@@ -556,6 +755,80 @@ function parseColor(value) {
     }
 
     return null;
+}
+
+function toHexByte(value) {
+    return clampNumber(Math.round(value), 0, 255).toString(16).padStart(2, "0");
+}
+
+function rgbToHex({ r, g, b }) {
+    return `#${toHexByte(r)}${toHexByte(g)}${toHexByte(b)}`;
+}
+
+function normalizeCustomScheme(raw) {
+    const scheme = {
+        id: CUSTOM_SCHEME_ID,
+        label: "Custom",
+        accent: DEFAULT_CUSTOM_SCHEME.accent,
+        bg: DEFAULT_CUSTOM_SCHEME.bg,
+        surface: DEFAULT_CUSTOM_SCHEME.surface,
+        text: DEFAULT_CUSTOM_SCHEME.text,
+        muted: DEFAULT_CUSTOM_SCHEME.muted,
+        divider: DEFAULT_CUSTOM_SCHEME.divider,
+        error: DEFAULT_CUSTOM_SCHEME.error,
+    };
+
+    if (!raw || typeof raw !== "object") return scheme;
+
+    SCHEME_COLOR_TOKENS.forEach((token) => {
+        const parsed = parseColor(raw[token]);
+        if (parsed) scheme[token] = rgbToHex(parsed);
+    });
+
+    return scheme;
+}
+
+function readCustomScheme() {
+    try {
+        const raw = localStorage.getItem(CUSTOM_SCHEME_STORAGE_KEY);
+        if (!raw) return normalizeCustomScheme(null);
+        return normalizeCustomScheme(JSON.parse(raw));
+    } catch {
+        return normalizeCustomScheme(null);
+    }
+}
+
+function storeCustomScheme(scheme) {
+    try {
+        const normalized = normalizeCustomScheme(scheme);
+        localStorage.setItem(
+            CUSTOM_SCHEME_STORAGE_KEY,
+            JSON.stringify({
+                accent: normalized.accent,
+                bg: normalized.bg,
+                surface: normalized.surface,
+                text: normalized.text,
+                muted: normalized.muted,
+                divider: normalized.divider,
+                error: normalized.error,
+            })
+        );
+        return normalized;
+    } catch {
+        return normalizeCustomScheme(scheme);
+    }
+}
+
+function getAllSchemes() {
+    return [...SPOTUI_SCHEMES, readCustomScheme()];
+}
+
+function cloneScheme(scheme) {
+    return normalizeCustomScheme(scheme);
+}
+
+function schemeFromColors(colors) {
+    return normalizeCustomScheme(colors);
 }
 
 function rgbToHsl({ r, g, b }) {
@@ -611,10 +884,11 @@ function readCssVar(name) {
 function findScheme(query) {
     if (!query) return null;
     const needle = String(query).trim().toLowerCase();
+    const schemes = getAllSchemes();
     return (
-        SPOTUI_SCHEMES.find((scheme) => scheme.id === needle) ||
-        SPOTUI_SCHEMES.find((scheme) => scheme.label.toLowerCase() === needle) ||
-        SPOTUI_SCHEMES.find((scheme) => scheme.label.toLowerCase().startsWith(needle)) ||
+        schemes.find((scheme) => scheme.id === needle) ||
+        schemes.find((scheme) => scheme.label.toLowerCase() === needle) ||
+        schemes.find((scheme) => scheme.label.toLowerCase().startsWith(needle)) ||
         null
     );
 }
@@ -636,11 +910,7 @@ function storeScheme(schemeId) {
     }
 }
 
-// Passing null follows whatever scheme Spicetify applied through --spice-*.
-function applyScheme(schemeId) {
-    const scheme = findScheme(schemeId);
-    activeSchemeId = scheme ? scheme.id : null;
-
+function applySchemeColors(scheme) {
     const resolved =
         (scheme && parseColor(scheme.accent)) ||
         parseColor(readCssVar("--spice-button-active")) ||
@@ -663,6 +933,17 @@ function applyScheme(schemeId) {
     });
 
     refreshAsciiColors();
+}
+
+// Passing null follows whatever scheme Spicetify applied through --spice-*.
+function applyScheme(schemeId) {
+    const scheme = findScheme(schemeId);
+    activeSchemeId = scheme ? scheme.id : null;
+    applySchemeColors(scheme);
+}
+
+function previewSchemeColors(scheme) {
+    applySchemeColors(scheme ? schemeFromColors(scheme) : null);
 }
 
 function getCharColor(row, col, totalRows, totalCols) {
@@ -1318,6 +1599,18 @@ Type /help
 <div class="spotui-pane-list"></div>
 </div>
 </div>
+<div id="spotui-lyrics" hidden>
+<div class="spotui-lyrics-header">
+<div class="spotui-lyrics-kicker">lyrics</div>
+<div class="spotui-lyrics-track">Nothing playing</div>
+<div class="spotui-lyrics-meta"></div>
+</div>
+<div class="spotui-lyrics-viewport">
+<div class="spotui-lyrics-fade spotui-lyrics-fade-top"></div>
+<div class="spotui-lyrics-lines"></div>
+<div class="spotui-lyrics-fade spotui-lyrics-fade-bottom"></div>
+</div>
+</div>
 <div id="spotui-status"></div>
 <div id="spotui-nowplaying" class="empty" aria-live="polite">
 <div class="spotui-np-row">
@@ -1340,9 +1633,23 @@ Type /help
     renderBackdrop();
     initNowPlayingBar();
     initPanes();
+    try {
+        if (localStorage.getItem(LYRICS_STORAGE_KEY) === "1") {
+            openLyricsPanel();
+        }
+    } catch {
+        /* ignore */
+    }
 
     const input = document.getElementById("spotui-input");
     input.addEventListener("keydown", async (e) => {
+        if (lyricsPanelOpen && e.key === "Escape") {
+            e.preventDefault();
+            closeLyricsPanel();
+            print("Lyrics closed");
+            return;
+        }
+
         if (paneMode && (e.key === "Escape" || e.key === "Tab")) {
             e.preventDefault();
             if (e.key === "Escape") {
@@ -1562,7 +1869,7 @@ async function execute(cmd) {
     }
 
     if (command === "lyrics") {
-        handleLyricsCommand();
+        handleLyricsCommand(args.join(" "));
         return;
     }
 
@@ -1689,14 +1996,14 @@ const HELP_CATEGORIES = [
             ["like | unlike", "like track / album / playlist (selection or now playing)", "like", "unlike"],
             ["np | info", "show what is playing (also on the fixed bar)", "np", "info"],
             ["home | recent | rec | top", "Made for you (Daily Mix, Discover Weekly…) + Recents", "home", "recent", "rec", "top"],
-            ["lyrics", "toggle the lyrics panel"],
+            ["lyrics [on|off]", "open synced lyrics panel (Esc closes)", "lyrics"],
         ],
     },
     {
         id: "interface",
         label: "Interface",
         entries: [
-            ["theme [name|auto]", "switch color scheme live; no name opens the picker"],
+            ["theme [name|auto|custom|set ...]", "switch or customize colors; no name opens the picker", "theme"],
             ["bg <url|off>", "image behind the logo screen; bg opacity <0-100>"],
             ["bar [on|off]", "show or hide Spotify's bottom player bar"],
             ["mini [on|off]", "open floating SpoTUI miniplayer window with GIF"],
@@ -1742,6 +2049,11 @@ let popupTrackTitle = "";
 let popupTrackContext = null;
 let popupSchemeSelected = 0;
 let popupSchemeOriginal = null;
+let popupCustomDraft = null;
+let popupCustomRestoreId = null;
+let popupCustomReturnToPicker = false;
+let popupCustomSelected = 0;
+let popupCustomEditing = false;
 let popupHelpSelected = 0;
 let popupHelpCategory = null;
 let lastPlaylistContextUri = null;
@@ -1773,10 +2085,47 @@ function openHelpPopup(query) {
 
 function openThemePopup() {
     popupSchemeOriginal = activeSchemeId;
-    const current = SPOTUI_SCHEMES.findIndex((scheme) => scheme.id === activeSchemeId);
+    const schemes = getAllSchemes();
+    const current = schemes.findIndex((scheme) => scheme.id === activeSchemeId);
     popupSchemeSelected = Math.max(current, 0);
     popupMode = "themes";
     renderPopup();
+}
+
+function openCustomThemePopup({ seed = null, returnToPicker = false } = {}) {
+    const schemes = getAllSchemes();
+    const selected = schemes[popupSchemeSelected] || null;
+    const seedScheme = seed || selected || readCustomScheme();
+
+    popupCustomReturnToPicker = returnToPicker;
+    popupCustomRestoreId = returnToPicker ? popupSchemeOriginal : activeSchemeId;
+    popupCustomDraft = cloneScheme(seedScheme);
+    popupCustomSelected = 0;
+    popupCustomEditing = false;
+    popupMode = "theme-custom";
+    previewSchemeColors(popupCustomDraft);
+    renderPopup();
+}
+
+function setCustomTokenColor(token, colorValue, { persist = false, activate = false } = {}) {
+    if (!SCHEME_COLOR_TOKENS.includes(token)) return null;
+    const parsed = parseColor(colorValue);
+    if (!parsed) return null;
+
+    const next = persist || activate ? readCustomScheme() : cloneScheme(popupCustomDraft || readCustomScheme());
+    next[token] = rgbToHex(parsed);
+
+    if (persist) storeCustomScheme(next);
+    if (activate) {
+        storeCustomScheme(next);
+        applyScheme(CUSTOM_SCHEME_ID);
+        storeScheme(CUSTOM_SCHEME_ID);
+    } else {
+        popupCustomDraft = next;
+        previewSchemeColors(next);
+    }
+
+    return next;
 }
 
 function getTrackTitle(track, index = 0) {
@@ -3286,6 +3635,7 @@ function scheduleNowPlayingProgress() {
             els.clock.textContent =
                 `${Spicetify.Player.formatTime(progress)} / ${Spicetify.Player.formatTime(duration)}`;
         }
+        syncLyricsHighlight();
     });
 }
 
@@ -3584,15 +3934,413 @@ function handleSeekCommand(arg) {
     }
 }
 
-function handleLyricsCommand() {
-    const button = document.querySelector(".main-nowPlayingBar-lyricsButton");
-    if (!button) {
-        print("Lyrics button not available for this track.", "error");
+const LRCLIB_CLIENT = "SpoTUI v1.1 (https://github.com/SouRyan/SpoTUI-By-SouRyan)";
+const LYRICS_STORAGE_KEY = "spotui:lyrics-open";
+
+let lyricsPanelOpen = false;
+let lyricsLoadToken = 0;
+let lyricsActiveIndex = -1;
+let lyricsCache = {
+    uri: "",
+    lines: [],
+    synced: false,
+    provider: "",
+    instrumental: false,
+    error: "",
+};
+let lyricsBound = false;
+
+function getLyricsEls() {
+    const root = document.getElementById("spotui-lyrics");
+    if (!root) return null;
+    return {
+        root,
+        track: root.querySelector(".spotui-lyrics-track"),
+        meta: root.querySelector(".spotui-lyrics-meta"),
+        lines: root.querySelector(".spotui-lyrics-lines"),
+    };
+}
+
+function getCurrentTrackLyricsInfo() {
+    const item = Spicetify.Player?.data?.item;
+    if (!item?.uri || !String(item.uri).includes(":track:")) return null;
+
+    const track = normalizeTrackItem(item);
+    const album =
+        item.album?.name ||
+        item.metadata?.album_title ||
+        item.metadata?.album ||
+        "";
+    const durationMs = Spicetify.Player.getDuration() || Number(item.duration?.milliseconds) || 0;
+
+    return {
+        uri: item.uri,
+        title: track.name,
+        artist: track.artist || "Unknown",
+        album: album || track.name,
+        durationMs,
+        durationSec: Math.round(durationMs / 1000),
+    };
+}
+
+function parseLrc(lrcText) {
+    if (!lrcText) return [];
+    const lines = [];
+
+    for (const raw of String(lrcText).split(/\r?\n/)) {
+        const stamps = [...raw.matchAll(/\[(\d{1,2}):(\d{2}(?:\.\d+)?)\]/g)];
+        if (!stamps.length) continue;
+        const text = raw.replace(/\[\d{1,2}:\d{2}(?:\.\d+)?\]/g, "").trim();
+        if (!text) continue;
+        for (const stamp of stamps) {
+            lines.push({
+                startTime: (Number(stamp[1]) * 60 + Number(stamp[2])) * 1000,
+                text,
+            });
+        }
+    }
+
+    lines.sort((a, b) => a.startTime - b.startTime);
+    return lines;
+}
+
+function plainLyricsToLines(plainText) {
+    return String(plainText || "")
+        .split(/\r?\n/)
+        .map((line) => line.trim())
+        .filter(Boolean)
+        .map((text) => ({ startTime: -1, text }));
+}
+
+async function fetchSpotifyColorLyrics(uri) {
+    if (!uri || !Spicetify.CosmosAsync?.get) return null;
+    const id = uri.split(":").pop();
+    if (!id) return null;
+
+    try {
+        const body = await Spicetify.CosmosAsync.get(
+            `https://spclient.wg.spotify.com/color-lyrics/v2/track/${id}?format=json&vocalRemoval=false&market=from_token`
+        );
+        const lyrics = body?.lyrics;
+        if (!lyrics?.lines?.length) return null;
+
+        const synced = lyrics.syncType === "LINE_SYNCED";
+        const lines = lyrics.lines
+            .map((line) => ({
+                startTime: synced ? Number(line.startTimeMs) || 0 : -1,
+                text: String(line.words || "").trim(),
+            }))
+            .filter((line) => line.text && line.text !== "♪");
+
+        if (!lines.length) return null;
+        return { lines, synced, provider: "Spotify", instrumental: false };
+    } catch {
+        return null;
+    }
+}
+
+async function fetchLrclibLyrics(info) {
+    const headers = { "Lrclib-Client": LRCLIB_CLIENT };
+
+    const exactParams = new URLSearchParams({
+        track_name: info.title,
+        artist_name: info.artist.split(",")[0].trim(),
+        album_name: info.album || info.title,
+        duration: String(info.durationSec || 0),
+    });
+
+    try {
+        const exactRes = await fetch(`https://lrclib.net/api/get?${exactParams}`, { headers });
+        if (exactRes.ok) {
+            const data = await exactRes.json();
+            return normalizeLrclibPayload(data);
+        }
+    } catch {
+        /* try search below */
+    }
+
+    try {
+        const searchParams = new URLSearchParams({
+            track_name: info.title,
+            artist_name: info.artist.split(",")[0].trim(),
+        });
+        const searchRes = await fetch(`https://lrclib.net/api/search?${searchParams}`, { headers });
+        if (!searchRes.ok) return null;
+        const results = await searchRes.json();
+        if (!Array.isArray(results) || !results.length) return null;
+
+        const target = info.durationSec || 0;
+        results.sort((a, b) => {
+            const da = Math.abs((a.duration || 0) - target);
+            const db = Math.abs((b.duration || 0) - target);
+            const syncBonus = (x) => (x.syncedLyrics ? -0.5 : 0);
+            return da + syncBonus(a) - (db + syncBonus(b));
+        });
+
+        return normalizeLrclibPayload(results[0]);
+    } catch {
+        return null;
+    }
+}
+
+function normalizeLrclibPayload(data) {
+    if (!data) return null;
+    if (data.instrumental) {
+        return { lines: [], synced: false, provider: "lrclib", instrumental: true };
+    }
+
+    const syncedLines = parseLrc(data.syncedLyrics);
+    if (syncedLines.length) {
+        return { lines: syncedLines, synced: true, provider: "lrclib", instrumental: false };
+    }
+
+    const plainLines = plainLyricsToLines(data.plainLyrics);
+    if (plainLines.length) {
+        return { lines: plainLines, synced: false, provider: "lrclib", instrumental: false };
+    }
+
+    return null;
+}
+
+async function resolveTrackLyrics(info) {
+    const spotify = await fetchSpotifyColorLyrics(info.uri);
+    if (spotify) return spotify;
+
+    const lrclib = await fetchLrclibLyrics(info);
+    if (lrclib) return lrclib;
+
+    return {
+        lines: [],
+        synced: false,
+        provider: "",
+        instrumental: false,
+        error: "No lyrics found",
+    };
+}
+
+function renderLyricsEmpty(message, detail = "") {
+    const els = getLyricsEls();
+    if (!els?.lines) return;
+    lyricsActiveIndex = -1;
+    els.lines.classList.remove("unsynced");
+    els.lines.innerHTML = "";
+    const empty = document.createElement("div");
+    empty.className = "spotui-lyrics-empty";
+    empty.innerHTML = `<strong>${message}</strong>${detail ? `<div>${detail}</div>` : ""}`;
+    els.lines.appendChild(empty);
+}
+
+function renderLyricsLines(lines, synced = true) {
+    const els = getLyricsEls();
+    if (!els?.lines) return;
+    els.lines.innerHTML = "";
+    els.lines.classList.toggle("unsynced", !synced);
+    lyricsActiveIndex = -1;
+
+    if (!lines.length) {
+        renderLyricsEmpty("No lyrics", "Nothing to show for this track.");
         return;
     }
-    button.click();
-    setTimeout(syncLyricsState, 250);
-    print(detectLyricsSurface() ? "Closing lyrics" : "Opening lyrics");
+
+    lines.forEach((line, idx) => {
+        const row = document.createElement("div");
+        row.className = "spotui-lyrics-line";
+        row.dataset.index = String(idx);
+        row.textContent = line.text;
+        els.lines.appendChild(row);
+    });
+}
+
+function findActiveLyricIndex(lines, progressMs) {
+    if (!lines?.length) return -1;
+    if (lines[0].startTime < 0) return -1;
+
+    let idx = -1;
+    for (let i = 0; i < lines.length; i += 1) {
+        if (lines[i].startTime <= progressMs) idx = i;
+        else break;
+    }
+    return idx;
+}
+
+function syncLyricsHighlight(force = false) {
+    if (!lyricsPanelOpen || !lyricsCache.synced || !lyricsCache.lines.length) return;
+
+    const els = getLyricsEls();
+    if (!els?.lines) return;
+
+    const progress = Spicetify.Player.getProgress() || 0;
+    const next = findActiveLyricIndex(lyricsCache.lines, progress);
+    if (!force && next === lyricsActiveIndex) return;
+
+    const rows = els.lines.querySelectorAll(".spotui-lyrics-line");
+    rows.forEach((row, idx) => {
+        const distance = next < 0 ? 99 : Math.abs(idx - next);
+        row.classList.toggle("active", idx === next);
+        row.classList.toggle("near", distance === 1);
+    });
+
+    lyricsActiveIndex = next;
+    if (next >= 0) {
+        rows[next]?.scrollIntoView({ block: "center", behavior: force ? "auto" : "smooth" });
+    }
+}
+
+function setLyricsHeader(info, statusText) {
+    const els = getLyricsEls();
+    if (!els) return;
+    if (els.track) {
+        els.track.textContent = info
+            ? `${info.title}${info.artist ? ` — ${info.artist}` : ""}`
+            : "Nothing playing";
+    }
+    if (els.meta) els.meta.textContent = statusText || "";
+}
+
+async function loadLyricsForCurrentTrack() {
+    const token = ++lyricsLoadToken;
+    const info = getCurrentTrackLyricsInfo();
+    const els = getLyricsEls();
+    if (!els) return;
+
+    if (!info) {
+        lyricsCache = { uri: "", lines: [], synced: false, provider: "", instrumental: false, error: "" };
+        setLyricsHeader(null, "");
+        renderLyricsEmpty("Nothing playing", "Start a track, then run lyrics again.");
+        return;
+    }
+
+    if (lyricsCache.uri === info.uri && (lyricsCache.lines.length || lyricsCache.instrumental || lyricsCache.error)) {
+        setLyricsHeader(
+            info,
+            lyricsCache.instrumental
+                ? "instrumental"
+                : `${lyricsCache.synced ? "synced" : "unsynced"} · ${lyricsCache.provider || "cache"}`
+        );
+        if (lyricsCache.instrumental) {
+            renderLyricsEmpty("Instrumental", "No vocals to show for this track.");
+        } else if (lyricsCache.error) {
+            renderLyricsEmpty("No lyrics", lyricsCache.error);
+        } else {
+            renderLyricsLines(lyricsCache.lines, lyricsCache.synced);
+            syncLyricsHighlight(true);
+        }
+        return;
+    }
+
+    setLyricsHeader(info, "fetching…");
+    renderLyricsEmpty("Fetching lyrics", `${info.title} — ${info.artist}`);
+
+    const result = await resolveTrackLyrics(info);
+    if (token !== lyricsLoadToken || !lyricsPanelOpen) return;
+
+    lyricsCache = {
+        uri: info.uri,
+        lines: result.lines || [],
+        synced: Boolean(result.synced),
+        provider: result.provider || "",
+        instrumental: Boolean(result.instrumental),
+        error: result.error || "",
+    };
+
+    if (lyricsCache.instrumental) {
+        setLyricsHeader(info, "instrumental");
+        renderLyricsEmpty("Instrumental", "No vocals to show for this track.");
+        return;
+    }
+
+    if (!lyricsCache.lines.length) {
+        setLyricsHeader(info, "not found");
+        renderLyricsEmpty("No lyrics found", "Tried Spotify and lrclib for this track.");
+        return;
+    }
+
+    setLyricsHeader(
+        info,
+        `${lyricsCache.synced ? "synced" : "unsynced"} · ${lyricsCache.provider}`
+    );
+    renderLyricsLines(lyricsCache.lines, lyricsCache.synced);
+    syncLyricsHighlight(true);
+}
+
+function storeLyricsOpen(open) {
+    try {
+        localStorage.setItem(LYRICS_STORAGE_KEY, open ? "1" : "0");
+    } catch {
+        /* ignore */
+    }
+}
+
+function openLyricsPanel() {
+    if (paneMode) closePanes();
+
+    lyricsPanelOpen = true;
+    storeLyricsOpen(true);
+    document.body.classList.add("spotui-lyrics-panel");
+
+    const root = document.getElementById("spotui-lyrics");
+    if (root) root.hidden = false;
+
+    bindLyricsEvents();
+    loadLyricsForCurrentTrack();
+}
+
+function closeLyricsPanel() {
+    lyricsPanelOpen = false;
+    lyricsLoadToken += 1;
+    storeLyricsOpen(false);
+    document.body.classList.remove("spotui-lyrics-panel");
+
+    const root = document.getElementById("spotui-lyrics");
+    if (root) root.hidden = true;
+}
+
+function bindLyricsEvents() {
+    if (lyricsBound || !Spicetify.Player?.addEventListener) return;
+    lyricsBound = true;
+
+    Spicetify.Player.addEventListener("songchange", () => {
+        if (!lyricsPanelOpen) return;
+        lyricsCache = {
+            uri: "",
+            lines: [],
+            synced: false,
+            provider: "",
+            instrumental: false,
+            error: "",
+        };
+        loadLyricsForCurrentTrack();
+    });
+}
+
+function handleLyricsCommand(arg = "") {
+    const mode = String(arg || "").trim().toLowerCase();
+
+    if (mode === "on" || mode === "open") {
+        openLyricsPanel();
+        print("Lyrics open");
+        return;
+    }
+
+    if (mode === "off" || mode === "close") {
+        closeLyricsPanel();
+        print("Lyrics closed");
+        return;
+    }
+
+    if (mode && mode !== "toggle") {
+        print("Usage: lyrics [on|off]", "error");
+        return;
+    }
+
+    if (lyricsPanelOpen) {
+        closeLyricsPanel();
+        print("Lyrics closed");
+        return;
+    }
+
+    openLyricsPanel();
+    print("Lyrics open");
 }
 
 let sleepTimer = null;
@@ -3742,7 +4490,7 @@ function getCoverArtUrl() {
 }
 
 function getActiveSchemeColors() {
-    return SPOTUI_SCHEMES.find((scheme) => scheme.id === activeSchemeId) || SPOTUI_SCHEMES[0];
+    return getAllSchemes().find((scheme) => scheme.id === activeSchemeId) || SPOTUI_SCHEMES[0];
 }
 
 function closeSpotuiPip() {
@@ -4297,17 +5045,61 @@ function handleThemeCommand(arg) {
         return;
     }
 
-    if (query === "auto" || query === "reset") {
+    const parts = query.split(/\s+/);
+    const head = parts[0].toLowerCase();
+
+    if (head === "auto" || head === "reset") {
         applyScheme(null);
         storeScheme(null);
         print("Theme: following the Spicetify scheme");
         return;
     }
 
+    if (head === "custom" || head === "edit") {
+        openCustomThemePopup({ seed: readCustomScheme(), returnToPicker: false });
+        return;
+    }
+
+    if (head === "set") {
+        if (parts.length < 3) {
+            print(
+                `Usage: theme set <${SCHEME_COLOR_TOKENS.join("|")}> <#hex|r g b>`,
+                "error"
+            );
+            return;
+        }
+
+        const token = parts[1].toLowerCase();
+        if (!SCHEME_COLOR_TOKENS.includes(token)) {
+            print(`Unknown token "${parts[1]}". Try: ${SCHEME_COLOR_TOKENS.join(", ")}`, "error");
+            return;
+        }
+
+        const colorArg = parts.slice(2).join(" ");
+        const updated = setCustomTokenColor(token, colorArg, { persist: true, activate: true });
+        if (!updated) {
+            print(`Invalid color "${colorArg}". Use #rrggbb or r g b`, "error");
+            return;
+        }
+
+        print(`Custom ${token}: ${updated[token]}`);
+        return;
+    }
+
+    if (head === "show" || head === "get") {
+        const custom = readCustomScheme();
+        const active = activeSchemeId || "auto";
+        print(`Theme: ${active}`);
+        SCHEME_COLOR_TOKENS.forEach((token) => {
+            print(`  ${token}: ${custom[token]}`);
+        });
+        return;
+    }
+
     const scheme = findScheme(query);
     if (!scheme) {
-        const names = SPOTUI_SCHEMES.map((entry) => entry.id).join(", ");
-        print(`Unknown theme "${query}". Try: ${names}, auto`, "error");
+        const names = getAllSchemes().map((entry) => entry.id).join(", ");
+        print(`Unknown theme "${query}". Try: ${names}, auto, custom, set`, "error");
         return;
     }
 
@@ -4549,6 +5341,7 @@ function initPanes() {
 }
 
 function openPanes(mode, focus = "left") {
+    if (lyricsPanelOpen) closeLyricsPanel();
     paneMode = mode;
     paneFocus = focus === "right" ? "right" : "left";
     paneDrilledDown = false;
@@ -4845,6 +5638,9 @@ function closePopup() {
         popup = null;
     }
     popupMode = null;
+    popupCustomEditing = false;
+    popupCustomReturnToPicker = false;
+    popupCustomDraft = null;
     if (paneMode) {
         focusPane(paneFocus);
         return;
@@ -4866,18 +5662,97 @@ function renderPopup() {
         inputEl.focus();
         inputEl.addEventListener("keydown", handleNewKeydown);
     } else if (popupMode === "themes") {
-        popup.innerHTML = `<div class="popup-title">Theme &mdash; &uarr;/&darr; preview &middot; Enter keep &middot; a follow Spicetify &middot; Esc cancel</div><div id="popup-list"></div>`;
+        popup.innerHTML = `<div class="popup-title">Theme &mdash; &uarr;/&darr; preview &middot; Enter keep &middot; c customize &middot; a follow Spicetify &middot; Esc cancel</div><div id="popup-list"></div>`;
         document.body.appendChild(popup);
         const listEl = popup.querySelector("#popup-list");
-        SPOTUI_SCHEMES.forEach((scheme, idx) => {
+        getAllSchemes().forEach((scheme, idx) => {
             const row = document.createElement("div");
             row.className = "popup-row" + (idx === popupSchemeSelected ? " selected" : "");
-            row.textContent = `${idx + 1}. ${scheme.label}${scheme.id === popupSchemeOriginal ? " (current)" : ""}`;
+
+            const swatch = document.createElement("span");
+            swatch.className = "popup-swatch";
+            swatch.style.background = scheme.accent;
+
+            const label = document.createElement("span");
+            label.textContent = `${idx + 1}. ${scheme.label}${scheme.id === popupSchemeOriginal ? " (current)" : ""}`;
+
+            row.append(swatch, label);
             listEl.appendChild(row);
         });
         popup.addEventListener("keydown", handleThemeKeydown);
         popup.focus();
         scrollSelectedPopupRowIntoView();
+    } else if (popupMode === "theme-custom") {
+        popup.classList.add("theme-custom-popup");
+        const title = popupCustomEditing
+            ? `Custom color &mdash; type #hex or r g b &middot; Enter apply &middot; Esc back`
+            : `Custom theme &mdash; &uarr;/&darr; select &middot; Enter edit &middot; s save &middot; r reset &middot; Esc cancel`;
+        popup.innerHTML = `<div class="popup-title">${title}</div><div id="popup-list"></div>`;
+        document.body.appendChild(popup);
+        const listEl = popup.querySelector("#popup-list");
+        const draft = popupCustomDraft || readCustomScheme();
+
+        SCHEME_COLOR_TOKENS.forEach((token, idx) => {
+            const row = document.createElement("div");
+            row.className = "popup-row" + (idx === popupCustomSelected ? " selected" : "");
+
+            if (popupCustomEditing && idx === popupCustomSelected) {
+                const swatch = document.createElement("span");
+                swatch.className = "popup-swatch";
+                swatch.style.background = draft[token];
+
+                const tokenLabel = document.createElement("span");
+                tokenLabel.className = "popup-row-token";
+                tokenLabel.textContent = SCHEME_TOKEN_LABELS[token];
+
+                const input = document.createElement("input");
+                input.id = "popup-input";
+                input.className = "popup-input";
+                input.value = draft[token];
+                input.setAttribute("spellcheck", "false");
+                input.style.marginTop = "6px";
+
+                row.append(swatch, tokenLabel);
+                listEl.appendChild(row);
+                listEl.appendChild(input);
+            } else {
+                const swatch = document.createElement("span");
+                swatch.className = "popup-swatch";
+                swatch.style.background = draft[token];
+
+                const tokenLabel = document.createElement("span");
+                tokenLabel.className = "popup-row-token";
+                tokenLabel.textContent = SCHEME_TOKEN_LABELS[token];
+
+                const hex = document.createElement("span");
+                hex.className = "popup-row-hex";
+                hex.textContent = draft[token];
+
+                row.append(swatch, tokenLabel, hex);
+                listEl.appendChild(row);
+            }
+        });
+
+        if (popupCustomEditing) {
+            const inputEl = popup.querySelector("#popup-input");
+            inputEl.focus();
+            inputEl.select();
+            inputEl.addEventListener("keydown", handleCustomThemeEditKeydown);
+            inputEl.addEventListener("input", () => {
+                const parsed = parseColor(inputEl.value);
+                if (!parsed) return;
+                const token = SCHEME_COLOR_TOKENS[popupCustomSelected];
+                popupCustomDraft = cloneScheme(popupCustomDraft);
+                popupCustomDraft[token] = rgbToHex(parsed);
+                previewSchemeColors(popupCustomDraft);
+                const swatch = popup.querySelector(".popup-row.selected .popup-swatch");
+                if (swatch) swatch.style.background = popupCustomDraft[token];
+            });
+        } else {
+            popup.addEventListener("keydown", handleCustomThemeKeydown);
+            popup.focus();
+            scrollSelectedPopupRowIntoView();
+        }
     } else if (popupMode === "help") {
         const category = HELP_CATEGORIES[popupHelpCategory];
         const title = category
@@ -4928,19 +5803,27 @@ function scrollSelectedPopupRowIntoView() {
 }
 
 function handleThemeKeydown(e) {
+    const schemes = getAllSchemes();
+
     if (e.key === "ArrowDown" || e.key === "ArrowUp") {
         e.preventDefault();
         const delta = e.key === "ArrowDown" ? 1 : -1;
-        popupSchemeSelected = (popupSchemeSelected + delta + SPOTUI_SCHEMES.length) % SPOTUI_SCHEMES.length;
-        applyScheme(SPOTUI_SCHEMES[popupSchemeSelected].id);
+        popupSchemeSelected = (popupSchemeSelected + delta + schemes.length) % schemes.length;
+        applyScheme(schemes[popupSchemeSelected].id);
         renderPopup();
     } else if (e.key === "Enter") {
         e.preventDefault();
-        const scheme = SPOTUI_SCHEMES[popupSchemeSelected];
+        const scheme = schemes[popupSchemeSelected];
         applyScheme(scheme.id);
         storeScheme(scheme.id);
         closePopup();
         print(`Theme: ${scheme.label}`);
+    } else if (e.key === "c" || e.key === "C") {
+        e.preventDefault();
+        openCustomThemePopup({
+            seed: schemes[popupSchemeSelected],
+            returnToPicker: true,
+        });
     } else if (e.key === "a" || e.key === "A") {
         e.preventDefault();
         applyScheme(null);
@@ -4953,6 +5836,70 @@ function handleThemeKeydown(e) {
         closePopup();
     }
     scrollSelectedPopupRowIntoView();
+}
+
+function handleCustomThemeKeydown(e) {
+    if (e.key === "ArrowDown" || e.key === "ArrowUp") {
+        e.preventDefault();
+        const delta = e.key === "ArrowDown" ? 1 : -1;
+        popupCustomSelected =
+            (popupCustomSelected + delta + SCHEME_COLOR_TOKENS.length) % SCHEME_COLOR_TOKENS.length;
+        renderPopup();
+    } else if (e.key === "Enter") {
+        e.preventDefault();
+        popupCustomEditing = true;
+        renderPopup();
+    } else if (e.key === "s" || e.key === "S") {
+        e.preventDefault();
+        const saved = storeCustomScheme(popupCustomDraft);
+        applyScheme(CUSTOM_SCHEME_ID);
+        storeScheme(CUSTOM_SCHEME_ID);
+        popupCustomEditing = false;
+        popupCustomReturnToPicker = false;
+        closePopup();
+        print(`Theme: Custom saved (${saved.accent})`);
+    } else if (e.key === "r" || e.key === "R") {
+        e.preventDefault();
+        popupCustomDraft = cloneScheme(DEFAULT_CUSTOM_SCHEME);
+        previewSchemeColors(popupCustomDraft);
+        renderPopup();
+    } else if (e.key === "Escape") {
+        e.preventDefault();
+        popupCustomEditing = false;
+        if (popupCustomReturnToPicker) {
+            popupMode = "themes";
+            const schemes = getAllSchemes();
+            applyScheme(schemes[popupSchemeSelected]?.id || popupCustomRestoreId);
+            renderPopup();
+            return;
+        }
+        applyScheme(popupCustomRestoreId);
+        closePopup();
+    }
+    scrollSelectedPopupRowIntoView();
+}
+
+function handleCustomThemeEditKeydown(e) {
+    if (e.key === "Enter") {
+        e.preventDefault();
+        const token = SCHEME_COLOR_TOKENS[popupCustomSelected];
+        const value = e.target.value.trim();
+        const parsed = parseColor(value);
+        if (!parsed) {
+            print(`Invalid color "${value}". Use #rrggbb or r g b`, "error");
+            return;
+        }
+        popupCustomDraft = cloneScheme(popupCustomDraft);
+        popupCustomDraft[token] = rgbToHex(parsed);
+        previewSchemeColors(popupCustomDraft);
+        popupCustomEditing = false;
+        renderPopup();
+    } else if (e.key === "Escape") {
+        e.preventDefault();
+        popupCustomEditing = false;
+        previewSchemeColors(popupCustomDraft);
+        renderPopup();
+    }
 }
 
 function handleHelpKeydown(e) {

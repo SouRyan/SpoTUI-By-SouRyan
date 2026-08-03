@@ -21,7 +21,7 @@ It combines:
 - Built-in playback controls
 - Track search without leaving the terminal
 - Playlist browsing and management
-- Six color schemes, followed by both the terminal and the Spotify UI
+- Six color schemes plus a fully customizable palette
 - Command history with the arrow keys
 - Spotify-native fallback mode
 - Copy-log and hide/show controls
@@ -124,13 +124,13 @@ your command history, and `help` to open the command list in-app.
 | `like` / `unlike` | like track / album / playlist (pane selection or now playing) |
 | `np` / `info` | dump now-playing details (the bar is always visible) |
 | `home` / `recent` / `rec` / `top` | Made for you (Daily Mix, Discover Weekly…) + Recents |
-| `lyrics` | toggle the lyrics panel |
+| `lyrics [on\|off]` | synced lyrics panel (Spotify + lrclib); Esc closes |
 
 ### Interface
 
 | Command | Description |
 | --- | --- |
-| `theme [name\|auto]` | switch color scheme; no name opens the picker |
+| `theme [name\|auto\|custom\|set …]` | switch or customize colors; no name opens the picker |
 | `bg <url\|off>` | image or GIF behind the logo screen |
 | `bar [on\|off]` | show or hide Spotify's bottom player bar (no arg toggles) |
 | `mini [on\|off]` | floating SpoTUI miniplayer window (keeps your GIF backdrop) |
@@ -153,6 +153,10 @@ album/playlist on the left); `u` unlikes; `n` creates a playlist (browse left pa
 After drilling into an item with Enter, `Esc` clears the right pane; otherwise it exits panes
 and returns to the logo. `theme`, `help` and new playlist still use modal popups.
 
+`lyrics` opens SpoTUI’s own synced lyrics panel (not the Spotify sidebar). It tries Spotify’s
+official lyrics first, then [lrclib](https://lrclib.net). The active line stays centered and
+highlighted; `Esc` or `lyrics off` closes it. The open state is remembered across restarts.
+
 ## Backdrop
 
 `bg` puts an image or animated GIF behind the ASCII logo. It only shows on the logo screen,
@@ -172,7 +176,7 @@ opacity are saved, so the backdrop comes back when Spotify restarts.
 ## Color Schemes
 
 SpoTUI ships with `SpoTUI - SkenS` (orange, default), `Matrix`, `Dracula`, `Gruvbox`,
-`Nord` and `Mono`.
+`Nord` and `Mono`, plus a `Custom` palette you can edit live.
 
 The quickest way to switch is the `theme` command, which repaints everything instantly and
 remembers your choice:
@@ -183,6 +187,23 @@ theme               open the picker, arrows preview live, Enter keeps
 theme auto          go back to following the Spicetify scheme
 ```
 
+### Custom colors
+
+Tune any token yourself — accent, background, surface, text, muted, divider, error:
+
+```
+theme custom                          open the color editor
+theme set accent #ff5500              change one token and switch to Custom
+theme set bg #101010
+theme show                            print the saved Custom palette
+```
+
+In the picker (`theme`), press `c` to customize starting from the highlighted scheme
+(handy for tweaking Nord/Dracula/etc.). In the editor: arrows select a token, `Enter`
+edits the hex, `s` saves, `r` resets to defaults, `Esc` cancels.
+
+Custom colors are stored in the browser and survive Spotify restarts.
+
 You can also switch through Spicetify itself, which additionally recolors the parts of the
 Spotify client that SpoTUI does not style, at the cost of a restart:
 
@@ -191,7 +212,7 @@ spicetify config color_scheme Nord
 spicetify apply
 ```
 
-Adding a scheme means editing two places: a section in `color.ini` (for Spicetify and the
+Adding a preset scheme means editing two places: a section in `color.ini` (for Spicetify and the
 Marketplace) and an entry in `SPOTUI_SCHEMES` in `theme.js` (for the `theme` command).
 
 ## Theme Files
