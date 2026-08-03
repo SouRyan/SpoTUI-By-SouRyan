@@ -2,6 +2,7 @@
 
 const style = `
 :root {
+    --spotui-font: "JetBrains Mono", "Fira Code", monospace;
     --spotui-accent: #ff8c42;
     --spotui-accent-rgb: 255, 140, 66;
     --spotui-accent-hover: #e07b39;
@@ -25,7 +26,7 @@ const style = `
     width: 100vw;
     background: var(--spotui-bg);
     color: var(--spotui-text);
-    font-family: "JetBrains Mono", "Fira Code", monospace;
+    font-family: var(--spotui-font);
     font-size: 15px;
     padding: 40px;
     box-sizing: border-box;
@@ -63,7 +64,7 @@ body.spotui-command-mode #spotui-backdrop.visible {
     opacity: 1;
     white-space: pre;
     text-align: center;
-    font-family: "JetBrains Mono", "Fira Code", monospace;
+    font-family: var(--spotui-font);
     font-size: 28px;
     line-height: 1.0;
     pointer-events: none;
@@ -541,7 +542,7 @@ body.spotui-lyrics-panel #spotui-lyrics {
     color: var(--spotui-contrast);
     border: none;
     padding: 6px 12px;
-    font-family: "JetBrains Mono", monospace;
+    font-family: var(--spotui-font);
     font-size: 13px;
     cursor: pointer;
     border-radius: 4px;
@@ -574,7 +575,7 @@ body.spotui-tui-hidden #spotui-popup {
     border: 2px solid var(--spotui-accent);
     border-radius: 6px;
     color: var(--spotui-text);
-    font-family: "JetBrains Mono", "Fira Code", monospace;
+    font-family: var(--spotui-font);
     font-size: 14px;
     z-index: 10002;
     padding: 16px;
@@ -655,6 +656,27 @@ body.spotui-tui-hidden #spotui-popup {
 #spotui-popup.theme-custom-popup {
     width: min(520px, calc(100vw - 32px));
 }
+.popup-font-grid {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 5px;
+}
+.popup-font-option {
+    min-width: 0;
+    padding: 7px 6px;
+    border: 1px solid transparent;
+    background: var(--spotui-surface);
+    color: var(--spotui-muted);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    text-align: center;
+}
+.popup-font-option.selected {
+    border-color: var(--spotui-accent);
+    background: var(--spotui-accent);
+    color: var(--spotui-contrast);
+}
 `;
 
 const SPOTUI_ASCII_ART = [
@@ -693,8 +715,32 @@ const DEFAULT_CUSTOM_SCHEME = {
     muted: "#b3b3b3",
     divider: "#2a2a2a",
     error: "#ff5555",
+    font: "JetBrains Mono",
 };
 const SCHEME_COLOR_TOKENS = ["accent", "bg", "surface", "text", "muted", "divider", "error"];
+const CUSTOM_THEME_TOKENS = [...SCHEME_COLOR_TOKENS, "font"];
+const SPOTUI_FONTS = [
+    "Adwaita Mono", "Atkinson Hyperlegible", "Boon", "Cascadia Mono",
+    "Comfortaa", "Helvetica", "Coming Soon", "CommitMono", "Courier",
+    "Fira Code", "Geist", "Geist Mono", "Georgia", "Hack",
+    "IBM Plex Mono", "IBM Plex Sans", "Inconsolata", "Inter Tight",
+    "Iosevka", "Itim", "JetBrains Mono", "Kanit", "Lalezar", "Lato",
+    "Lexend Deca", "Mononoki", "Montserrat", "Noto Naskh Arabic",
+    "Noto Sans Lao", "Nunito", "Open Dyslexic", "Overpass Mono",
+    "Oxygen", "Parkinsans", "Proto", "Roboto", "Roboto Mono",
+    "Sarabun", "Source Code Pro", "Space Grotesk", "Titillium Web",
+    "Ubuntu", "Ubuntu Mono", "Victor Mono", "Fira Mono",
+];
+const DEFAULT_SPOTUI_FONT = "JetBrains Mono";
+const GOOGLE_FONTS = new Set([
+    "Atkinson Hyperlegible", "Boon", "Comfortaa", "Coming Soon", "CommitMono",
+    "Fira Code", "Geist", "Geist Mono", "IBM Plex Mono", "IBM Plex Sans",
+    "Inconsolata", "Inter Tight", "Itim", "JetBrains Mono", "Kanit", "Lalezar",
+    "Lato", "Lexend Deca", "Montserrat", "Noto Naskh Arabic", "Noto Sans Lao",
+    "Nunito", "Oxygen", "Parkinsans", "Roboto", "Roboto Mono", "Sarabun",
+    "Source Code Pro", "Space Grotesk", "Titillium Web", "Ubuntu", "Ubuntu Mono",
+    "Victor Mono",
+]);
 const SCHEME_TOKEN_LABELS = {
     accent: "accent",
     bg: "background",
@@ -703,6 +749,7 @@ const SCHEME_TOKEN_LABELS = {
     muted: "muted",
     divider: "divider",
     error: "error",
+    font: "font",
 };
 
 const SCHEME_STORAGE_KEY = "spotui:scheme";
@@ -765,6 +812,30 @@ function rgbToHex({ r, g, b }) {
     return `#${toHexByte(r)}${toHexByte(g)}${toHexByte(b)}`;
 }
 
+function normalizeFontName(value) {
+    const font = String(value || "").trim().slice(0, 80);
+    return font && !/[;"{}]/.test(font) ? font : DEFAULT_SPOTUI_FONT;
+}
+
+function fontFamilyValue(font) {
+    const normalized = normalizeFontName(font);
+    const mono = /mono|code|courier|hack|iosevka|mononoki/i.test(normalized);
+    return `${JSON.stringify(normalized)}, ${mono ? "monospace" : "system-ui, sans-serif"}`;
+}
+
+function ensureFontLoaded(font) {
+    const normalized = normalizeFontName(font);
+    if (!GOOGLE_FONTS.has(normalized) || !document.head) return;
+    const id = `spotui-font-${normalized.toLowerCase().replace(/[^a-z0-9]+/g, "-")}`;
+    if (document.getElementById(id)) return;
+
+    const link = document.createElement("link");
+    link.id = id;
+    link.rel = "stylesheet";
+    link.href = `https://fonts.googleapis.com/css2?family=${encodeURIComponent(normalized)}:wght@400;500;600&display=swap`;
+    document.head.appendChild(link);
+}
+
 function normalizeCustomScheme(raw) {
     const scheme = {
         id: CUSTOM_SCHEME_ID,
@@ -776,6 +847,7 @@ function normalizeCustomScheme(raw) {
         muted: DEFAULT_CUSTOM_SCHEME.muted,
         divider: DEFAULT_CUSTOM_SCHEME.divider,
         error: DEFAULT_CUSTOM_SCHEME.error,
+        font: DEFAULT_CUSTOM_SCHEME.font,
     };
 
     if (!raw || typeof raw !== "object") return scheme;
@@ -784,6 +856,7 @@ function normalizeCustomScheme(raw) {
         const parsed = parseColor(raw[token]);
         if (parsed) scheme[token] = rgbToHex(parsed);
     });
+    scheme.font = normalizeFontName(raw.font);
 
     return scheme;
 }
@@ -811,6 +884,7 @@ function storeCustomScheme(scheme) {
                 muted: normalized.muted,
                 divider: normalized.divider,
                 error: normalized.error,
+                font: normalized.font,
             })
         );
         return normalized;
@@ -926,6 +1000,9 @@ function applySchemeColors(scheme) {
     root.style.setProperty("--spotui-accent-hover", accentShade(0.25));
     root.style.setProperty("--spotui-accent-light", accentShade(0.8));
     root.style.setProperty("--spotui-contrast", contrastColor(resolved));
+    const font = scheme?.font || DEFAULT_SPOTUI_FONT;
+    ensureFontLoaded(font);
+    root.style.setProperty("--spotui-font", fontFamilyValue(font));
 
     SCHEME_SURFACE_TOKENS.forEach((token) => {
         if (scheme) root.style.setProperty(`--spotui-${token}`, scheme[token]);
@@ -2054,6 +2131,8 @@ let popupCustomRestoreId = null;
 let popupCustomReturnToPicker = false;
 let popupCustomSelected = 0;
 let popupCustomEditing = false;
+let popupFontSelected = 0;
+let popupFontCustomEditing = false;
 let popupHelpSelected = 0;
 let popupHelpCategory = null;
 let lastPlaylistContextUri = null;
@@ -2104,6 +2183,17 @@ function openCustomThemePopup({ seed = null, returnToPicker = false } = {}) {
     popupCustomEditing = false;
     popupMode = "theme-custom";
     previewSchemeColors(popupCustomDraft);
+    renderPopup();
+}
+
+function openThemeFontPopup() {
+    const currentFont = normalizeFontName(popupCustomDraft?.font);
+    const current = SPOTUI_FONTS.findIndex(
+        (font) => font.toLowerCase() === currentFont.toLowerCase()
+    );
+    popupFontSelected = current >= 0 ? current : SPOTUI_FONTS.length;
+    popupFontCustomEditing = false;
+    popupMode = "theme-fonts";
     renderPopup();
 }
 
@@ -4617,7 +4707,7 @@ html, body {
   overflow: hidden;
   background: ${scheme.bg};
   color: ${scheme.text};
-  font-family: "JetBrains Mono", "Fira Code", monospace;
+  font-family: ${fontFamilyValue(scheme.font)};
   user-select: none;
 }
 #spotui-pip-bg {
@@ -5093,6 +5183,7 @@ function handleThemeCommand(arg) {
         SCHEME_COLOR_TOKENS.forEach((token) => {
             print(`  ${token}: ${custom[token]}`);
         });
+        print(`  font: ${custom.font}`);
         return;
     }
 
@@ -5641,6 +5732,7 @@ function closePopup() {
     popupCustomEditing = false;
     popupCustomReturnToPicker = false;
     popupCustomDraft = null;
+    popupFontCustomEditing = false;
     if (paneMode) {
         focusPane(paneFocus);
         return;
@@ -5692,11 +5784,23 @@ function renderPopup() {
         const listEl = popup.querySelector("#popup-list");
         const draft = popupCustomDraft || readCustomScheme();
 
-        SCHEME_COLOR_TOKENS.forEach((token, idx) => {
+        CUSTOM_THEME_TOKENS.forEach((token, idx) => {
             const row = document.createElement("div");
             row.className = "popup-row" + (idx === popupCustomSelected ? " selected" : "");
 
-            if (popupCustomEditing && idx === popupCustomSelected) {
+            if (token === "font") {
+                const tokenLabel = document.createElement("span");
+                tokenLabel.className = "popup-row-token";
+                tokenLabel.textContent = SCHEME_TOKEN_LABELS[token];
+
+                const value = document.createElement("span");
+                value.className = "popup-row-hex";
+                value.textContent = draft.font;
+                value.style.fontFamily = fontFamilyValue(draft.font);
+
+                row.append(tokenLabel, value);
+                listEl.appendChild(row);
+            } else if (popupCustomEditing && idx === popupCustomSelected) {
                 const swatch = document.createElement("span");
                 swatch.className = "popup-swatch";
                 swatch.style.background = draft[token];
@@ -5750,6 +5854,52 @@ function renderPopup() {
             });
         } else {
             popup.addEventListener("keydown", handleCustomThemeKeydown);
+            popup.focus();
+            scrollSelectedPopupRowIntoView();
+        }
+    } else if (popupMode === "theme-fonts") {
+        popup.classList.add("theme-custom-popup");
+        const customFont = normalizeFontName(popupCustomDraft?.font);
+        const title = popupFontCustomEditing
+            ? `Custom font &mdash; type an installed font name &middot; Enter apply &middot; Esc back`
+            : `Font &mdash; arrows preview &middot; Enter choose &middot; Esc back`;
+        popup.innerHTML = `<div class="popup-title">${title}</div>`;
+        document.body.appendChild(popup);
+
+        if (popupFontCustomEditing) {
+            const input = document.createElement("input");
+            input.id = "popup-input";
+            input.className = "popup-input";
+            input.value = customFont;
+            input.setAttribute("spellcheck", "false");
+            input.style.fontFamily = fontFamilyValue(customFont);
+            popup.appendChild(input);
+            input.focus();
+            input.select();
+            input.addEventListener("input", () => {
+                const font = normalizeFontName(input.value);
+                input.style.fontFamily = fontFamilyValue(font);
+                popupCustomDraft = cloneScheme(popupCustomDraft);
+                popupCustomDraft.font = font;
+                previewSchemeColors(popupCustomDraft);
+            });
+            input.addEventListener("keydown", handleCustomFontEditKeydown);
+        } else {
+            const grid = document.createElement("div");
+            grid.className = "popup-font-grid";
+            const fonts = [...SPOTUI_FONTS, "Custom…"];
+            fonts.forEach((font, idx) => {
+                const option = document.createElement("div");
+                option.className =
+                    "popup-font-option" + (idx === popupFontSelected ? " selected" : "");
+                option.textContent = font;
+                if (idx < SPOTUI_FONTS.length) {
+                    option.style.fontFamily = fontFamilyValue(font);
+                }
+                grid.appendChild(option);
+            });
+            popup.appendChild(grid);
+            popup.addEventListener("keydown", handleThemeFontKeydown);
             popup.focus();
             scrollSelectedPopupRowIntoView();
         }
@@ -5843,10 +5993,14 @@ function handleCustomThemeKeydown(e) {
         e.preventDefault();
         const delta = e.key === "ArrowDown" ? 1 : -1;
         popupCustomSelected =
-            (popupCustomSelected + delta + SCHEME_COLOR_TOKENS.length) % SCHEME_COLOR_TOKENS.length;
+            (popupCustomSelected + delta + CUSTOM_THEME_TOKENS.length) % CUSTOM_THEME_TOKENS.length;
         renderPopup();
     } else if (e.key === "Enter") {
         e.preventDefault();
+        if (CUSTOM_THEME_TOKENS[popupCustomSelected] === "font") {
+            openThemeFontPopup();
+            return;
+        }
         popupCustomEditing = true;
         renderPopup();
     } else if (e.key === "s" || e.key === "S") {
@@ -5877,6 +6031,63 @@ function handleCustomThemeKeydown(e) {
         closePopup();
     }
     scrollSelectedPopupRowIntoView();
+}
+
+function handleThemeFontKeydown(e) {
+    const total = SPOTUI_FONTS.length + 1;
+    const columns = 4;
+    let delta = 0;
+
+    if (e.key === "ArrowLeft") delta = -1;
+    else if (e.key === "ArrowRight") delta = 1;
+    else if (e.key === "ArrowUp") delta = -columns;
+    else if (e.key === "ArrowDown") delta = columns;
+
+    if (delta) {
+        e.preventDefault();
+        popupFontSelected = (popupFontSelected + delta + total) % total;
+        if (popupFontSelected < SPOTUI_FONTS.length) {
+            popupCustomDraft = cloneScheme(popupCustomDraft);
+            popupCustomDraft.font = SPOTUI_FONTS[popupFontSelected];
+            previewSchemeColors(popupCustomDraft);
+        }
+        renderPopup();
+    } else if (e.key === "Enter") {
+        e.preventDefault();
+        if (popupFontSelected === SPOTUI_FONTS.length) {
+            popupFontCustomEditing = true;
+            renderPopup();
+            return;
+        }
+        popupCustomDraft = cloneScheme(popupCustomDraft);
+        popupCustomDraft.font = SPOTUI_FONTS[popupFontSelected];
+        previewSchemeColors(popupCustomDraft);
+        popupMode = "theme-custom";
+        renderPopup();
+    } else if (e.key === "Escape") {
+        e.preventDefault();
+        popupMode = "theme-custom";
+        previewSchemeColors(popupCustomDraft);
+        renderPopup();
+    }
+}
+
+function handleCustomFontEditKeydown(e) {
+    if (e.key === "Enter") {
+        e.preventDefault();
+        const font = normalizeFontName(e.target.value);
+        popupCustomDraft = cloneScheme(popupCustomDraft);
+        popupCustomDraft.font = font;
+        previewSchemeColors(popupCustomDraft);
+        popupFontCustomEditing = false;
+        popupMode = "theme-custom";
+        renderPopup();
+    } else if (e.key === "Escape") {
+        e.preventDefault();
+        popupFontCustomEditing = false;
+        popupMode = "theme-fonts";
+        renderPopup();
+    }
 }
 
 function handleCustomThemeEditKeydown(e) {

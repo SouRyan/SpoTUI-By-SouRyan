@@ -187,9 +187,10 @@ theme               open the picker, arrows preview live, Enter keeps
 theme auto          go back to following the Spicetify scheme
 ```
 
-### Custom colors
+### Custom colors and fonts
 
-Tune any token yourself — accent, background, surface, text, muted, divider, error:
+Tune any color token yourself — accent, background, surface, text, muted, divider, error —
+and choose the font used across the TUI, popups, lyrics, Spotify bar and miniplayer:
 
 ```
 theme custom                          open the color editor
@@ -200,9 +201,13 @@ theme show                            print the saved Custom palette
 
 In the picker (`theme`), press `c` to customize starting from the highlighted scheme
 (handy for tweaking Nord/Dracula/etc.). In the editor: arrows select a token, `Enter`
-edits the hex, `s` saves, `r` resets to defaults, `Esc` cancels.
+edits it, `s` saves, `r` resets to defaults, `Esc` cancels. Select `font` and press
+`Enter` to open the font grid. The `Custom…` option accepts any installed font name.
 
-Custom colors are stored in the browser and survive Spotify restarts.
+The font picker includes terminal, accessibility and display families such as JetBrains Mono,
+Cascadia Mono, Fira Code, Atkinson Hyperlegible, Open Dyslexic, Roboto, Geist and Ubuntu.
+Web fonts are loaded when available; system-only fonts require that font to be installed.
+The custom palette and font are stored in the browser and survive Spotify restarts.
 
 You can also switch through Spicetify itself, which additionally recolors the parts of the
 Spotify client that SpoTUI does not style, at the cost of a restart:

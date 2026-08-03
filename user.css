@@ -49,7 +49,7 @@ body.spotui-spotify-enabled .main-appShell-topBar {
     border-bottom: 1px solid var(--spotui-accent, #ff8c42) !important;
     box-shadow: inset 0 -1px 0 rgba(var(--spotui-accent-rgb, 255, 140, 66), 0.18) !important;
     color: var(--spotui-text, #ddd) !important;
-    font-family: "JetBrains Mono", "Fira Code", monospace !important;
+    font-family: var(--spotui-font, "JetBrains Mono", monospace) !important;
 }
 
 body.spotui-spotify-enabled .main-appShell-topBar .main-topBar-background,
@@ -106,7 +106,7 @@ body.spotui-spotify-enabled .main-appShell-topBar .main-globalNav-searchInputTex
     background: transparent !important;
     border: none !important;
     outline: none !important;
-    font-family: "JetBrains Mono", "Fira Code", monospace !important;
+    font-family: var(--spotui-font, "JetBrains Mono", monospace) !important;
     caret-color: var(--spotui-accent, #ff8c42) !important;
 }
 
@@ -155,7 +155,7 @@ body.spotui-bar-hidden .Root__now-playing-bar {
     border-top: 1px solid var(--spotui-accent, #ff8c42);
     box-shadow: inset 0 1px 0 rgba(var(--spotui-accent-rgb, 255, 140, 66), 0.18);
     color: var(--spotui-text, #ddd) !important;
-    font-family: "JetBrains Mono", "Fira Code", monospace !important;
+    font-family: var(--spotui-font, "JetBrains Mono", monospace) !important;
 }
 
 .Root__now-playing-bar .main-nowPlayingBar-left,
@@ -254,7 +254,7 @@ body.spotui-lyrics-open .lyrics-lyrics-container,
 body.spotui-lyrics-open .lyrics-lyricsContainer-LyricsContainer {
     background: var(--spotui-bg, #000) !important;
     color: var(--spotui-text, #ddd) !important;
-    font-family: "JetBrains Mono", "Fira Code", monospace !important;
+    font-family: var(--spotui-font, "JetBrains Mono", monospace) !important;
     border-top: 1px solid var(--spotui-accent, #ff8c42) !important;
     box-shadow: inset 0 1px 0 rgba(var(--spotui-accent-rgb, 255, 140, 66), 0.18) !important;
 }
@@ -421,7 +421,7 @@ body.spotui-spotify-enabled .search-modal-searchBar input {
     background: transparent !important;
     border: none !important;
     outline: none !important;
-    font-family: "JetBrains Mono", "Fira Code", monospace !important;
+    font-family: var(--spotui-font, "JetBrains Mono", monospace) !important;
     caret-color: var(--spotui-accent, #ff8c42) !important;
 }
 
