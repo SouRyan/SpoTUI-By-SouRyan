@@ -272,6 +272,75 @@ body.spotui-pane-mode #spotui-panes {
     border-style: dashed;
 }
 
+.spotui-np-layout {
+    display: flex;
+    align-items: stretch;
+    gap: 12px;
+    min-width: 0;
+}
+
+.spotui-np-cover {
+    flex: 0 0 auto;
+    margin: 0;
+    padding: 2px;
+    border: 1px solid rgba(var(--spotui-accent-rgb), 0.2);
+    background: #000;
+    color: var(--spotui-text);
+    font-family: "JetBrains Mono", "Fira Code", "Cascadia Mono", Consolas, monospace;
+    font-size: 9px;
+    line-height: 1;
+    letter-spacing: 0;
+    white-space: pre;
+    user-select: none;
+    overflow: hidden;
+}
+
+.spotui-np-cover[hidden] {
+    display: none !important;
+}
+
+.spotui-np-info {
+    flex: 1 1 auto;
+    min-width: 0;
+}
+
+#spotui-cover-ascii {
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    transform: translate(-50%, -50%);
+    z-index: 1;
+    margin: 0;
+    padding: 8px;
+    border: 1px solid rgba(var(--spotui-accent-rgb), 0.25);
+    background: rgba(0, 0, 0, 0.85);
+    font-family: "JetBrains Mono", "Fira Code", "Cascadia Mono", Consolas, monospace;
+    font-size: clamp(7px, 1.25vw, 14px);
+    line-height: 1;
+    letter-spacing: 0;
+    white-space: pre;
+    user-select: none;
+    font-variant-ligatures: none;
+    font-kerning: none;
+}
+
+#spotui-cover-ascii[hidden] {
+    display: none !important;
+}
+
+.spotui-cover-cell {
+    display: inline-block;
+    width: 1ch;
+    line-height: 1;
+    font-size: inherit;
+    text-shadow: none;
+}
+
+#spotui-logo.spotui-logo-cover .spotui-ascii-grid:not(#spotui-cover-ascii) {
+    opacity: 0;
+    pointer-events: none;
+}
+
 .spotui-np-row {
     display: flex;
     align-items: baseline;
@@ -513,6 +582,10 @@ const SCHEME_SURFACE_TOKENS = ["bg", "surface", "text", "muted", "divider", "err
 const BACKDROP_STORAGE_KEY = "spotui:backdrop";
 const BACKDROP_OPACITY_STORAGE_KEY = "spotui:backdrop-opacity";
 const BAR_STORAGE_KEY = "spotui:player-bar-hidden";
+const COVER_ASCII_STORAGE_KEY = "spotui:cover-ascii";
+/* Half-block mosaic: each ▀ packs 2 image rows (fg=top, bg=bottom). */
+const COVER_ASCII_LOGO = { cols: 64, rows: 32 };
+const COVER_ASCII_NP = { cols: 28, rows: 14 };
 const PIP_WIDTH = 320;
 const PIP_HEIGHT = 420;
 
@@ -522,6 +595,10 @@ let playerBarHidden = false;
 let pipWindow = null;
 let pipEventsBound = false;
 let pipProgressRaf = null;
+/** @type {"both"|"logo"|"np"|"off"} */
+let coverAsciiMode = "both";
+let coverAsciiCache = { url: "", logoHtml: "", npHtml: "" };
+let coverAsciiSeq = 0;
 
 let accentHsl = rgbToHsl(DEFAULT_ACCENT);
 let activeSchemeId = null;
@@ -674,6 +751,7 @@ function getCharColor(row, col, totalRows, totalCols) {
 let asciiAnimationInitialized = false;
 let asciiCharData = [];
 let asciiGridSize = { rows: 0, cols: 0 };
+let asciiCoverPaused = false;
 
 function refreshAsciiColors() {
     if (!asciiCharData.length) return;
@@ -1118,13 +1196,21 @@ function initAsciiAnimation() {
 
     async function runLoop() {
         while (true) {
+            if (asciiCoverPaused) {
+                await sleep(400);
+                continue;
+            }
             const shuffled = shuffleArray([...stageFunctions]);
             for (const stageFn of shuffled) {
+                if (asciiCoverPaused) break;
                 await stageFn();
+                if (asciiCoverPaused) break;
                 await sleep(700 + Math.random() * 400);
             }
-            resetGrid();
-            await sleep(300);
+            if (!asciiCoverPaused) {
+                resetGrid();
+                await sleep(300);
+            }
         }
     }
 
@@ -1320,6 +1406,9 @@ Type /help
 </div>
 <div id="spotui-status"></div>
 <div id="spotui-nowplaying" class="empty" aria-live="polite">
+<div class="spotui-np-layout">
+<pre class="spotui-np-cover" hidden aria-hidden="true"></pre>
+<div class="spotui-np-info">
 <div class="spotui-np-row">
 <span class="spotui-np-state">-</span>
 <span class="spotui-np-title">Nothing playing</span>
@@ -1328,6 +1417,8 @@ Type /help
 <div class="spotui-np-row">
 <span class="spotui-np-bar"><span class="spotui-np-bar-track"><span class="spotui-np-bar-fill"></span></span></span>
 <span class="spotui-np-clock"></span>
+</div>
+</div>
 </div>
 </div>
 <div id="spotui-footer">
@@ -1586,6 +1677,11 @@ async function execute(cmd) {
         return;
     }
 
+    if (command === "cover") {
+        handleCoverCommand(argText);
+        return;
+    }
+
     if (command === "mini") {
         await handleMiniCommand(argText);
         return;
@@ -1699,6 +1795,7 @@ const HELP_CATEGORIES = [
             ["theme [name|auto]", "switch color scheme live; no name opens the picker"],
             ["bg <url|off>", "image behind the logo screen; bg opacity <0-100>"],
             ["bar [on|off]", "show or hide Spotify's bottom player bar"],
+            ["cover [both|logo|np|off]", "album cover as ▀ color mosaic on logo / now-playing", "cover"],
             ["mini [on|off]", "open floating SpoTUI miniplayer window with GIF"],
             ["tui -m [command|cli]", "switch interface mode"],
             ["clear", "clear the log"],
@@ -3198,6 +3295,7 @@ function getNowPlayingEls() {
     if (!root) return null;
     nowPlayingEls = {
         root,
+        cover: root.querySelector(".spotui-np-cover"),
         state: root.querySelector(".spotui-np-state"),
         title: root.querySelector(".spotui-np-title"),
         meta: root.querySelector(".spotui-np-meta"),
@@ -3291,11 +3389,13 @@ function scheduleNowPlayingProgress() {
 
 function initNowPlayingBar() {
     renderNowPlayingBar();
+    refreshCoverAscii(false);
     if (nowPlayingBound || !Spicetify.Player?.addEventListener) return;
     nowPlayingBound = true;
 
     Spicetify.Player.addEventListener("songchange", () => {
         renderNowPlayingBar();
+        refreshCoverAscii(false);
     });
     Spicetify.Player.addEventListener("onplaypause", () => renderNowPlayingBar());
     Spicetify.Player.addEventListener("onprogress", () => scheduleNowPlayingProgress());
@@ -3728,17 +3828,285 @@ function isPipOpen() {
     return !!(pipWindow && !pipWindow.closed);
 }
 
-function getCoverArtUrl() {
-    const item = Spicetify.Player?.data?.item;
-    if (!item) return "";
-    return (
-        item.album?.images?.[0]?.url ||
-        item.images?.[0]?.url ||
-        item.metadata?.image_xlarge_url ||
-        item.metadata?.image_large_url ||
-        item.metadata?.image_url ||
-        ""
+function normalizeCoverUrl(url) {
+    if (!url || typeof url !== "string") return "";
+    let out = url.trim();
+    if (!out) return "";
+    if (out.startsWith("spotify:image:")) {
+        out = `https://i.scdn.co/image/${out.slice("spotify:image:".length)}`;
+    }
+    return out;
+}
+
+function pickLargestImageUrl(images) {
+    if (!images) return "";
+    if (typeof images === "string") return normalizeCoverUrl(images);
+    if (!Array.isArray(images) || !images.length) return "";
+    const sorted = [...images].sort(
+        (a, b) =>
+            (b.width || b.maxWidth || b.height || 0) -
+            (a.width || a.maxWidth || a.height || 0)
     );
+    const best = sorted[0];
+    return normalizeCoverUrl(best?.url || best?.uri || best?.src || "");
+}
+
+function getCoverArtUrl(item) {
+    const track = item || Spicetify.Player?.data?.item;
+    if (!track) return "";
+    return (
+        pickLargestImageUrl(track.album?.images) ||
+        pickLargestImageUrl(track.images) ||
+        pickLargestImageUrl(track.album?.coverArt?.sources) ||
+        pickLargestImageUrl(track.coverArt?.sources) ||
+        normalizeCoverUrl(track.metadata?.image_xlarge_url) ||
+        normalizeCoverUrl(track.metadata?.image_large_url) ||
+        normalizeCoverUrl(track.metadata?.image_url) ||
+        normalizeCoverUrl(track.image || track.imageUrl || track.cover || "")
+    );
+}
+
+function readCoverAsciiMode() {
+    try {
+        const raw = localStorage.getItem(COVER_ASCII_STORAGE_KEY);
+        if (raw === "logo" || raw === "np" || raw === "both" || raw === "off") {
+            return raw;
+        }
+    } catch {
+        /* ignore */
+    }
+    return "both";
+}
+
+function writeCoverAsciiMode(mode) {
+    coverAsciiMode = mode;
+    try {
+        localStorage.setItem(COVER_ASCII_STORAGE_KEY, mode);
+    } catch {
+        /* ignore */
+    }
+}
+
+function coverAsciiWantsLogo() {
+    return coverAsciiMode === "logo" || coverAsciiMode === "both";
+}
+
+function coverAsciiWantsNp() {
+    return coverAsciiMode === "np" || coverAsciiMode === "both";
+}
+
+function getCoverAsciiLogoEl() {
+    return document.getElementById("spotui-cover-ascii");
+}
+
+function ensureCoverAsciiLogoEl() {
+    let el = getCoverAsciiLogoEl();
+    if (el) return el;
+    const logo = document.getElementById("spotui-logo");
+    if (!logo) return null;
+    el = document.createElement("pre");
+    el.id = "spotui-cover-ascii";
+    el.hidden = true;
+    el.setAttribute("aria-hidden", "true");
+    logo.appendChild(el);
+    return el;
+}
+
+function clearCoverAsciiLogo() {
+    const el = getCoverAsciiLogoEl();
+    if (el) {
+        el.innerHTML = "";
+        el.hidden = true;
+    }
+    document.getElementById("spotui-logo")?.classList.remove("spotui-logo-cover");
+    asciiCoverPaused = false;
+}
+
+function clearCoverAsciiNp() {
+    const els = getNowPlayingEls();
+    if (els?.cover) {
+        els.cover.innerHTML = "";
+        els.cover.hidden = true;
+    }
+}
+
+function clearAllCoverAscii() {
+    coverAsciiCache = { url: "", logoHtml: "", npHtml: "" };
+    clearCoverAsciiLogo();
+    clearCoverAsciiNp();
+}
+
+function rgbToCss(r, g, b) {
+    return `rgb(${r | 0},${g | 0},${b | 0})`;
+}
+
+async function loadCoverImage(url) {
+    try {
+        const res = await fetch(url, { mode: "cors", credentials: "omit" });
+        if (!res.ok) throw new Error(`cover fetch ${res.status}`);
+        const blob = await res.blob();
+        const objUrl = URL.createObjectURL(blob);
+        try {
+            const img = new Image();
+            await new Promise((resolve, reject) => {
+                img.onload = () => resolve();
+                img.onerror = () => reject(new Error("cover blob decode failed"));
+                img.src = objUrl;
+            });
+            return img;
+        } finally {
+            URL.revokeObjectURL(objUrl);
+        }
+    } catch {
+        const img = new Image();
+        img.crossOrigin = "anonymous";
+        await new Promise((resolve, reject) => {
+            img.onload = () => resolve();
+            img.onerror = () => reject(new Error("cover load failed"));
+            img.src = url;
+        });
+        return img;
+    }
+}
+
+/**
+ * Half-block mosaic: each ▀ cell shows 2 vertical pixels
+ * (color = top, background-color = bottom). Far more readable than sparse ASCII ramps.
+ */
+async function imageUrlToHalfBlockHtml(url, cols, rows) {
+    if (!url || !cols || !rows) return "";
+    const img = await loadCoverImage(url);
+    const sampleH = rows * 2;
+    const canvas = document.createElement("canvas");
+    canvas.width = cols;
+    canvas.height = sampleH;
+    const ctx = canvas.getContext("2d", { willReadFrequently: true });
+    if (!ctx) return "";
+
+    // Cover-fit (center crop) so album art fills the mosaic.
+    const scale = Math.max(cols / img.naturalWidth, sampleH / img.naturalHeight);
+    const sw = cols / scale;
+    const sh = sampleH / scale;
+    const sx = (img.naturalWidth - sw) / 2;
+    const sy = (img.naturalHeight - sh) / 2;
+    ctx.imageSmoothingEnabled = true;
+    ctx.drawImage(img, sx, sy, sw, sh, 0, 0, cols, sampleH);
+
+    const { data } = ctx.getImageData(0, 0, cols, sampleH);
+    const lines = [];
+    for (let y = 0; y < rows; y += 1) {
+        const cells = [];
+        const yTop = y * 2;
+        const yBot = yTop + 1;
+        for (let x = 0; x < cols; x += 1) {
+            const iTop = (yTop * cols + x) * 4;
+            const iBot = (yBot * cols + x) * 4;
+            const top = rgbToCss(data[iTop], data[iTop + 1], data[iTop + 2]);
+            const bot = rgbToCss(data[iBot], data[iBot + 1], data[iBot + 2]);
+            cells.push(
+                `<span class="spotui-cover-cell" style="color:${top};background-color:${bot}">▀</span>`
+            );
+        }
+        lines.push(cells.join(""));
+    }
+    return lines.join("\n");
+}
+
+function applyCoverAsciiFromCache() {
+    if (coverAsciiWantsLogo() && coverAsciiCache.logoHtml) {
+        const el = ensureCoverAsciiLogoEl();
+        const logo = document.getElementById("spotui-logo");
+        if (el && logo) {
+            el.innerHTML = coverAsciiCache.logoHtml;
+            el.hidden = false;
+            logo.classList.add("spotui-logo-cover");
+            asciiCoverPaused = true;
+        }
+    } else {
+        clearCoverAsciiLogo();
+    }
+
+    if (coverAsciiWantsNp() && coverAsciiCache.npHtml) {
+        const els = getNowPlayingEls();
+        if (els?.cover) {
+            els.cover.innerHTML = coverAsciiCache.npHtml;
+            els.cover.hidden = false;
+        }
+    } else {
+        clearCoverAsciiNp();
+    }
+}
+
+async function refreshCoverAscii(force) {
+    const seq = ++coverAsciiSeq;
+    if (coverAsciiMode === "off") {
+        clearAllCoverAscii();
+        return;
+    }
+
+    const item = Spicetify?.Player?.data?.item || Spicetify?.Player?.data?.track;
+    const url = getCoverArtUrl(item);
+    if (!url) {
+        clearAllCoverAscii();
+        return;
+    }
+
+    const needLogo = coverAsciiWantsLogo();
+    const needNp = coverAsciiWantsNp();
+
+    if (
+        !force &&
+        coverAsciiCache.url === url &&
+        (!needLogo || coverAsciiCache.logoHtml) &&
+        (!needNp || coverAsciiCache.npHtml)
+    ) {
+        applyCoverAsciiFromCache();
+        return;
+    }
+
+    try {
+        const [logoHtml, npHtml] = await Promise.all([
+            needLogo
+                ? imageUrlToHalfBlockHtml(url, COVER_ASCII_LOGO.cols, COVER_ASCII_LOGO.rows)
+                : Promise.resolve(""),
+            needNp
+                ? imageUrlToHalfBlockHtml(url, COVER_ASCII_NP.cols, COVER_ASCII_NP.rows)
+                : Promise.resolve(""),
+        ]);
+        if (seq !== coverAsciiSeq) return;
+        coverAsciiCache = { url, logoHtml, npHtml };
+        applyCoverAsciiFromCache();
+    } catch (err) {
+        console.warn("[SpoTUI] cover ascii failed", err);
+        if (seq === coverAsciiSeq) clearAllCoverAscii();
+    }
+}
+
+function handleCoverCommand(argText) {
+    const mode = (argText || "").trim().toLowerCase();
+    if (!mode) {
+        print(`Cover ASCII: ${coverAsciiMode} (mosaic ▀)`);
+        print("Usage: cover [both|logo|np|off|toggle|refresh]");
+        return;
+    }
+    if (mode === "refresh" || mode === "reload") {
+        refreshCoverAscii(true);
+        print("Cover ASCII refreshed");
+        return;
+    }
+    if (mode === "toggle") {
+        writeCoverAsciiMode(coverAsciiMode === "off" ? "both" : "off");
+        refreshCoverAscii(true);
+        print(`Cover ASCII: ${coverAsciiMode}`);
+        return;
+    }
+    if (mode === "both" || mode === "logo" || mode === "np" || mode === "off") {
+        writeCoverAsciiMode(mode);
+        refreshCoverAscii(true);
+        print(`Cover ASCII: ${coverAsciiMode}`);
+        return;
+    }
+    print("Usage: cover [both|logo|np|off|toggle|refresh]", "error");
 }
 
 function getActiveSchemeColors() {
@@ -5018,6 +5386,7 @@ injectStyle();
 applyScheme(readStoredScheme());
 restoreBackdrop();
 restorePlayerBar();
+coverAsciiMode = readCoverAsciiMode();
 setTimeout(createCopyButton, 500);
 setTimeout(initLyricsBridge, 1000);
 

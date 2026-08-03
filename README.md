@@ -133,6 +133,7 @@ your command history, and `help` to open the command list in-app.
 | `theme [name\|auto]` | switch color scheme; no name opens the picker |
 | `bg <url\|off>` | image or GIF behind the logo screen |
 | `bar [on\|off]` | show or hide Spotify's bottom player bar (no arg toggles) |
+| `cover [both\|logo\|np\|off]` | album cover as a ▀ color mosaic on the logo and/or now-playing bar |
 | `mini [on\|off]` | floating SpoTUI miniplayer window (keeps your GIF backdrop) |
 | `tui -m [command\|cli]` | hide or show the command log |
 | `clear` | clear the log |
@@ -152,6 +153,24 @@ selected track from either pane; `l` toggles like on the focused item (track on 
 album/playlist on the left); `u` unlikes; `n` creates a playlist (browse left pane only).
 After drilling into an item with Enter, `Esc` clears the right pane; otherwise it exits panes
 and returns to the logo. `theme`, `help` and new playlist still use modal popups.
+
+## Album cover mosaic
+
+`cover` replaces the animated ASCII logo (and/or the now-playing strip) with a **half-block
+color mosaic** of the current album art — each `▀` packs two pixels (foreground = top,
+background = bottom), so covers stay identifiable instead of sparse text ramps.
+
+```
+cover              show current mode
+cover both         logo + now-playing (default)
+cover logo         logo only
+cover np           now-playing only
+cover off          disable
+cover toggle       both ↔ off
+cover refresh      rebuild the mosaic
+```
+
+The mode is saved, so it comes back when Spotify restarts.
 
 ## Backdrop
 
