@@ -41,7 +41,7 @@ body.spotui-spotify-enabled .Root__right-sidebar,
 body.spotui-spotify-enabled .main-buddy-list,
 body.spotui-spotify-enabled .main-nowPlayingView-section,
 body.spotui-spotify-enabled .main-trackList-trackList {
-    display: flex !important;
+    display: revert !important;
 }
 
 body.spotui-spotify-enabled .main-appShell-topBar {
@@ -381,6 +381,8 @@ body.spotui-spotify-enabled .main-view-container {
     position: relative !important;
     height: calc(100vh - 90px) !important;
     overflow: auto !important;
+    width: 100% !important;
+    min-width: 0 !important;
 }
 
 #spotui-tui {
@@ -390,8 +392,11 @@ body.spotui-spotify-enabled .main-view-container {
     overflow-x: hidden !important;
 }
 
-body.spotui-spotify-enabled #spotui-tui {
-    display: flex !important;
+body.spotui-spotify-enabled #spotui-tui,
+body.spotui-tui-hidden #spotui-tui {
+    position: fixed !important;
+    pointer-events: none !important;
+    display: none !important;
 }
 
 body.spotui-tui-hidden #spotui-tui {
@@ -458,9 +463,9 @@ body.spotui-search-mode #spotui-controls {
 body.spotui-tui-hidden #spotui-back-btn,
 body.spotui-spotify-enabled #spotui-back-btn,
 body.spotui-search-mode #spotui-back-btn {
-    position: fixed !important;
-    top: 50% !important;
-    left: 50% !important;
+    position: fixed !important; 
+    top: 35px !important;
+    right: 90px !important;
     transform: translate(-50%, -50%) !important;
     z-index: 10020 !important;
     display: block !important;
