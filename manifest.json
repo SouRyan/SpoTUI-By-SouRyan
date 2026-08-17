@@ -4,7 +4,7 @@
     "preview": "preview2.png",
     "usercss": "user.css",
     "schemes": "color.ini",
-    "include": ["https://cdn.jsdelivr.net/gh/SouRyan/SpoTUI-By-SouRyan@v1.2.0/theme.js"],
+    "include": ["https://cdn.jsdelivr.net/gh/SouRyan/SpoTUI-By-SouRyan@master/theme.js"],
     "readme": "README.md",
     "branch": "master",
     "authors": [

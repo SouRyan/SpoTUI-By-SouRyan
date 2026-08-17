@@ -189,12 +189,10 @@ You can also run `update` anytime to re-check and reopen the popup.
    git tag vX.Y.Z
    git push origin master vX.Y.Z
    ```
-4. Point `manifest.json` `include` at that tag (e.g. `@vX.Y.Z/theme.js`) so new Marketplace
-   installs stay pinned and do not follow `@master` silently.
+4. Keep `manifest.json` `include` on `@master` (bootstrap). The in-app **Update** button
+   loads the tagged release from jsDelivr; do not pin `include` to a missing tag or installs break.
 
 Users on an older build will then see the popup and can update with one click.
-The in-app **Update** button loads the new tag even if their Spicetify `include` still
-points at an older pin.
 
 ## Backdrop
 
