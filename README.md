@@ -141,6 +141,7 @@ or `theme s` cycling `set` / `show` / scheme ids that start with `s`.
 | `bg <url\|off>` | image or GIF behind the logo screen |
 | `bar [on\|off]` | show or hide Spotify's bottom player bar (no arg toggles) |
 | `mini [on\|off]` | floating SpoTUI miniplayer window (keeps your GIF backdrop) |
+| `update [dismiss]` | check for SpoTUI updates (or dismiss the notice) |
 | `tui -m [command\|cli]` | hide or show the command log |
 | `clear` | clear the log |
 | `help [category\|command]` | browse commands by category |
@@ -163,6 +164,37 @@ and returns to the logo. `theme`, `help` and new playlist still use modal popups
 `lyrics` opens SpoTUI’s own synced lyrics panel (not the Spotify sidebar). It tries Spotify’s
 official lyrics first, then [lrclib](https://lrclib.net). The active line stays centered and
 highlighted; `Esc` or `lyrics off` closes it. The open state is remembered across restarts.
+
+## Updates
+
+SpoTUI checks [version.json](version.json) on GitHub when it starts. If a newer
+version is published, a popup shows a short changelog with an **Update** button.
+Nothing updates until that button is clicked (or you press Enter in the popup).
+**Later** / Esc only postpones the notice for the current session; `update dismiss`
+hides it until the next version.
+
+Clicking **Update** stores the chosen version and loads that release’s `theme.js`
+and `user.css` from the matching Git tag on jsDelivr, then reloads Spotify. No
+`spicetify apply` is required for this path.
+
+You can also run `update` anytime to re-check and reopen the popup.
+
+### Publishing a release (maintainers)
+
+1. Bump `SPOTUI_VERSION` in `theme.js` and `version` in `version.json` to the same value.
+2. Set `notes` in `version.json` to a short changelog line users will see in the popup.
+3. Commit, create a Git tag `vX.Y.Z` (must match the version, with the `v` prefix), and push
+   both `master` and the tag:
+   ```bash
+   git tag vX.Y.Z
+   git push origin master vX.Y.Z
+   ```
+4. Point `manifest.json` `include` at that tag (e.g. `@vX.Y.Z/theme.js`) so new Marketplace
+   installs stay pinned and do not follow `@master` silently.
+
+Users on an older build will then see the popup and can update with one click.
+The in-app **Update** button loads the new tag even if their Spicetify `include` still
+points at an older pin.
 
 ## Backdrop
 
@@ -232,6 +264,7 @@ Marketplace) and an entry in `SPOTUI_SCHEMES` in `theme.js` (for the `theme` com
 - `theme.js` - JavaScript UI logic
 - `user.css` - Spotify UI styling overrides
 - `color.ini` - theme colors
+- `version.json` - remote version + changelog notes for the in-app updater
 - `preview.png` - Marketplace preview image
 
 ## Authors

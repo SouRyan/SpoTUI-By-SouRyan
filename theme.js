@@ -1,5 +1,91 @@
 (function () {
 
+const SPOTUI_VERSION = "1.2.0";
+const SPOTUI_REPO = "SouRyan/SpoTUI-By-SouRyan";
+const SPOTUI_CDN_BASE = `https://cdn.jsdelivr.net/gh/${SPOTUI_REPO}`;
+const SPOTUI_VERSION_URL =
+    `https://raw.githubusercontent.com/${SPOTUI_REPO}/master/version.json`;
+const ACTIVE_VERSION_KEY = "spotui:active-version";
+const DISMISSED_VERSION_KEY = "spotui:dismissed-version";
+const REMOTE_CSS_ID = "spotui-remote-css";
+
+function readActiveVersion() {
+    try {
+        return localStorage.getItem(ACTIVE_VERSION_KEY) || SPOTUI_VERSION;
+    } catch {
+        return SPOTUI_VERSION;
+    }
+}
+
+function storeActiveVersion(version) {
+    try {
+        localStorage.setItem(ACTIVE_VERSION_KEY, version);
+    } catch {
+        /* ignore */
+    }
+}
+
+function readDismissedVersion() {
+    try {
+        return localStorage.getItem(DISMISSED_VERSION_KEY) || "";
+    } catch {
+        return "";
+    }
+}
+
+function storeDismissedVersion(version) {
+    try {
+        if (version) localStorage.setItem(DISMISSED_VERSION_KEY, version);
+        else localStorage.removeItem(DISMISSED_VERSION_KEY);
+    } catch {
+        /* ignore */
+    }
+}
+
+function cdnTagUrl(version, file) {
+    return `${SPOTUI_CDN_BASE}@v${encodeURIComponent(version)}/${file}`;
+}
+
+function injectRemoteUserCss(version) {
+    let link = document.getElementById(REMOTE_CSS_ID);
+    if (!link) {
+        link = document.createElement("link");
+        link.id = REMOTE_CSS_ID;
+        link.rel = "stylesheet";
+        (document.head || document.documentElement).appendChild(link);
+    }
+    link.href = `${cdnTagUrl(version, "user.css")}?t=${Date.now()}`;
+}
+
+function loadRemoteTheme(version) {
+    injectRemoteUserCss(version);
+    const script = document.createElement("script");
+    script.src = `${cdnTagUrl(version, "theme.js")}?t=${Date.now()}`;
+    script.onerror = () => {
+        console.error(`SpoTUI: failed to load v${version} from CDN, falling back to bundled`);
+        try {
+            localStorage.removeItem(ACTIVE_VERSION_KEY);
+        } catch {
+            /* ignore */
+        }
+        window.__SPOTUI_LOADING_REMOTE__ = false;
+        location.reload();
+    };
+    (document.head || document.documentElement).appendChild(script);
+}
+
+const spotuiActiveVersion = readActiveVersion();
+if (
+    spotuiActiveVersion !== SPOTUI_VERSION &&
+    !window.__SPOTUI_LOADING_REMOTE__ &&
+    !window.__SPOTUI_RUNNING__
+) {
+    window.__SPOTUI_LOADING_REMOTE__ = true;
+    loadRemoteTheme(spotuiActiveVersion);
+    return;
+}
+window.__SPOTUI_RUNNING__ = true;
+
 const style = `
 :root {
     --spotui-font: "JetBrains Mono", "Fira Code", monospace;
@@ -676,6 +762,44 @@ body.spotui-tui-hidden #spotui-popup {
     border-color: var(--spotui-accent);
     background: var(--spotui-accent);
     color: var(--spotui-contrast);
+}
+.popup-update-notes {
+    color: var(--spotui-text);
+    line-height: 1.45;
+    margin: 8px 0 16px;
+    white-space: pre-wrap;
+}
+.popup-update-meta {
+    color: var(--spotui-muted);
+    font-size: 12px;
+    margin-bottom: 12px;
+}
+.popup-actions {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+}
+.popup-btn {
+    flex: 1;
+    min-width: 110px;
+    padding: 8px 12px;
+    border: 1px solid var(--spotui-accent);
+    background: var(--spotui-accent);
+    color: var(--spotui-contrast);
+    font-family: inherit;
+    font-size: 13px;
+    cursor: pointer;
+}
+.popup-btn.secondary {
+    background: transparent;
+    color: var(--spotui-accent);
+}
+.popup-btn:hover {
+    filter: brightness(1.08);
+}
+.popup-btn:focus {
+    outline: 1px solid var(--spotui-text);
+    outline-offset: 2px;
 }
 `;
 
@@ -1669,7 +1793,7 @@ function createTerminal() {
     box.innerHTML = `
 <div id="spotui-backdrop"></div>
 <div id="spotui-logo"></div>
-<div id="spotui-output">SpoTUI v1.1
+<div id="spotui-output">SpoTUI v${SPOTUI_VERSION}
 
 Type /help
 
@@ -1893,6 +2017,10 @@ async function execute(cmd) {
 
     if (command === "help") {
         openHelpPopup(argText);
+        return;
+    }
+    if (command === "update") {
+        await handleUpdateCommand(args[0]);
         return;
     }
     if (command === "clear") {
@@ -2128,6 +2256,7 @@ const HELP_CATEGORIES = [
             ["bar [on|off]", "show or hide Spotify's bottom player bar"],
             ["mini [on|off]", "open floating SpoTUI miniplayer window with GIF"],
             ["tui -m [command|cli]", "switch interface mode"],
+            ["update [dismiss]", "check for SpoTUI updates or dismiss the notice", "update"],
             ["clear", "clear the log"],
             ["help [category|command]", "this list"],
         ],
@@ -2253,6 +2382,8 @@ function getArgCompletions(command, args, partial) {
             }
             return [];
         }
+        case "update":
+            return args.length === 0 ? filterCompletions(["dismiss"], partial) : [];
         case "loop":
         case "superloop":
         case "lyrics":
@@ -2481,6 +2612,157 @@ function openThemeFontPopup() {
     popupFontCustomEditing = false;
     popupMode = "theme-fonts";
     renderPopup();
+}
+
+let pendingUpdate = null;
+let updateCheckPromise = null;
+let updateSessionQuiet = false;
+
+function parseVersionParts(version) {
+    return String(version || "")
+        .trim()
+        .replace(/^v/i, "")
+        .split(/[.+-]/)
+        .map((part) => {
+            const num = Number(part);
+            return Number.isFinite(num) ? num : part;
+        });
+}
+
+function compareVersions(a, b) {
+    const left = parseVersionParts(a);
+    const right = parseVersionParts(b);
+    const length = Math.max(left.length, right.length);
+    for (let i = 0; i < length; i += 1) {
+        const l = left[i] ?? 0;
+        const r = right[i] ?? 0;
+        if (l === r) continue;
+        if (typeof l === "number" && typeof r === "number") return l - r;
+        return String(l).localeCompare(String(r));
+    }
+    return 0;
+}
+
+async function fetchRemoteVersionInfo() {
+    const response = await fetch(`${SPOTUI_VERSION_URL}?t=${Date.now()}`, {
+        cache: "no-store",
+    });
+    if (!response.ok) throw new Error(`HTTP ${response.status}`);
+    const data = await response.json();
+    const version = String(data?.version || "").trim().replace(/^v/i, "");
+    if (!version) throw new Error("Missing version");
+    return {
+        version,
+        notes: String(data?.notes || "").trim() || "Bug fixes and improvements",
+    };
+}
+
+async function checkForUpdates({ force = false } = {}) {
+    if (!force && updateCheckPromise) return updateCheckPromise;
+    updateCheckPromise = (async () => {
+        const remote = await fetchRemoteVersionInfo();
+        if (compareVersions(remote.version, SPOTUI_VERSION) > 0) {
+            pendingUpdate = remote;
+        } else {
+            pendingUpdate = null;
+        }
+        return pendingUpdate;
+    })();
+    try {
+        return await updateCheckPromise;
+    } finally {
+        updateCheckPromise = null;
+    }
+}
+
+function notifyUpdateAvailable(info) {
+    const summary = `SpoTUI ${info.version} available — ${info.notes}`;
+    print(summary);
+    try {
+        if (typeof Spicetify?.showNotification === "function") {
+            Spicetify.showNotification(`SpoTUI ${info.version} available — type update`);
+        }
+    } catch {
+        /* ignore */
+    }
+}
+
+function openUpdatePopup(info = pendingUpdate) {
+    if (!info) {
+        print("SpoTUI is up to date");
+        return;
+    }
+    pendingUpdate = info;
+    popupMode = "update";
+    renderPopup();
+}
+
+async function applySpotuiUpdate(info = pendingUpdate) {
+    if (!info?.version) {
+        print("No update available", "error");
+        return;
+    }
+    storeActiveVersion(info.version);
+    storeDismissedVersion("");
+    injectRemoteUserCss(info.version);
+    print(`Updating to SpoTUI ${info.version}…`);
+    try {
+        if (typeof Spicetify?.showNotification === "function") {
+            Spicetify.showNotification(`Updated to SpoTUI ${info.version}`);
+        }
+    } catch {
+        /* ignore */
+    }
+    closePopup();
+    setTimeout(() => location.reload(), 250);
+}
+
+function dismissPendingUpdate(info = pendingUpdate) {
+    if (!info?.version) {
+        print("No update notice to dismiss");
+        return;
+    }
+    storeDismissedVersion(info.version);
+    updateSessionQuiet = true;
+    closePopup();
+    print(`Dismissed update notice for ${info.version}`);
+}
+
+async function handleUpdateCommand(arg) {
+    const action = (arg || "").toLowerCase();
+    if (action === "dismiss") {
+        try {
+            const info = pendingUpdate || (await checkForUpdates({ force: true }));
+            dismissPendingUpdate(info);
+        } catch (err) {
+            print("Update check failed: " + err.message, "error");
+        }
+        return;
+    }
+
+    try {
+        const info = await checkForUpdates({ force: true });
+        if (!info) {
+            print(`SpoTUI ${SPOTUI_VERSION} is up to date`);
+            return;
+        }
+        openUpdatePopup(info);
+    } catch (err) {
+        print("Update check failed: " + err.message, "error");
+    }
+}
+
+async function bootUpdateCheck() {
+    try {
+        const info = await checkForUpdates();
+        if (!info) return;
+        if (readDismissedVersion() === info.version) return;
+        if (updateSessionQuiet) return;
+        notifyUpdateAvailable(info);
+        openUpdatePopup(info);
+    } catch (err) {
+        console.warn("SpoTUI update check failed:", err);
+    }
 }
 
 function setCustomTokenColor(token, colorValue, { persist = false, activate = false } = {}) {
@@ -4310,7 +4592,7 @@ function handleSeekCommand(arg) {
     }
 }
 
-const LRCLIB_CLIENT = "SpoTUI v1.1 (https://github.com/SouRyan/SpoTUI-By-SouRyan)";
+const LRCLIB_CLIENT = `SpoTUI v${SPOTUI_VERSION} (https://github.com/SouRyan/SpoTUI-By-SouRyan)`;
 const LYRICS_STORAGE_KEY = "spotui:lyrics-open";
 
 let lyricsPanelOpen = false;
@@ -6259,6 +6541,66 @@ function renderPopup() {
         popup.addEventListener("keydown", handleHelpKeydown);
         popup.focus();
         scrollSelectedPopupRowIntoView();
+    } else if (popupMode === "update") {
+        const info = pendingUpdate || { version: "?", notes: "" };
+        popup.classList.add("theme-custom-popup");
+        popup.innerHTML = "";
+        const titleEl = document.createElement("div");
+        titleEl.className = "popup-title";
+        titleEl.textContent = `Update available — v${info.version} · Enter update · Esc later`;
+        popup.appendChild(titleEl);
+
+        const meta = document.createElement("div");
+        meta.className = "popup-update-meta";
+        meta.textContent = `Current: v${SPOTUI_VERSION} → New: v${info.version}`;
+        popup.appendChild(meta);
+
+        const notes = document.createElement("div");
+        notes.className = "popup-update-notes";
+        notes.textContent = info.notes || "Bug fixes and improvements";
+        popup.appendChild(notes);
+
+        const actions = document.createElement("div");
+        actions.className = "popup-actions";
+
+        const updateBtn = document.createElement("button");
+        updateBtn.type = "button";
+        updateBtn.className = "popup-btn";
+        updateBtn.textContent = "Update";
+        updateBtn.addEventListener("click", () => {
+            applySpotuiUpdate(info);
+        });
+
+        const laterBtn = document.createElement("button");
+        laterBtn.type = "button";
+        laterBtn.className = "popup-btn secondary";
+        laterBtn.textContent = "Later";
+        laterBtn.addEventListener("click", () => {
+            updateSessionQuiet = true;
+            closePopup();
+            print(`Update v${info.version} postponed — type update anytime`);
+        });
+
+        actions.append(updateBtn, laterBtn);
+        popup.appendChild(actions);
+        document.body.appendChild(popup);
+        popup.addEventListener("keydown", handleUpdateKeydown);
+        updateBtn.focus();
+    }
+}
+
+function handleUpdateKeydown(e) {
+    if (e.target?.tagName === "BUTTON") return;
+    if (e.key === "Enter") {
+        e.preventDefault();
+        applySpotuiUpdate(pendingUpdate);
+    } else if (e.key === "Escape") {
+        e.preventDefault();
+        updateSessionQuiet = true;
+        closePopup();
+        if (pendingUpdate?.version) {
+            print(`Update v${pendingUpdate.version} postponed — type update anytime`);
+        }
     }
 }
 
@@ -6497,6 +6839,7 @@ restoreBackdrop();
 restorePlayerBar();
 setTimeout(createCopyButton, 500);
 setTimeout(initLyricsBridge, 1000);
+setTimeout(bootUpdateCheck, 2000);
 
 // Spotify's own stylesheet may land after ours, so re-read the scheme once it settles.
 setTimeout(() => applyScheme(activeSchemeId), 1500);
