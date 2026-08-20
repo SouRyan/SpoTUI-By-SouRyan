@@ -2101,6 +2101,11 @@ async function execute(cmd) {
         return;
     }
 
+    if (command === "share") {
+        await handleShareCommand();
+        return;
+    }
+
     if (command === "like") {
         await handleLibraryLike(true, { toggle: false });
         return;
@@ -2243,6 +2248,7 @@ const HELP_CATEGORIES = [
             ["queue", "current queue"],
             ["like | unlike", "like track / album / playlist (selection or now playing)", "like", "unlike"],
             ["np | info", "show what is playing (also on the fixed bar)", "np", "info"],
+            ["share", "copy a Spotify link (selection or now playing)"],
             ["home | recent | rec | top", "Made for you (Daily Mix, Discover Weekly…) + Recents", "home", "recent", "rec", "top"],
             ["lyrics [on|off]", "open synced lyrics panel (Esc closes)", "lyrics"],
         ],
@@ -4314,6 +4320,97 @@ function initNowPlayingBar() {
         if (!document.getElementById("spotui-nowplaying")) return;
         renderNowPlayingBar();
     }, 2000);
+}
+
+function uriToOpenSpotifyUrl(uri) {
+    const value = String(uri || "").trim();
+    if (!value) return "";
+    if (/^https?:\/\//i.test(value)) return value;
+    if (value.includes(":local:") || value.includes(":collection")) return "";
+
+    try {
+        const parsed = Spicetify.URI?.from?.(value) || Spicetify.URI?.fromString?.(value);
+        if (parsed) {
+            if (typeof parsed.toURL === "function") {
+                const url = parsed.toURL();
+                if (url) return url;
+            }
+            if (typeof parsed.toURLPath === "function") {
+                const path = parsed.toURLPath(true);
+                if (path) {
+                    const clean = String(path).startsWith("/") ? path : `/${path}`;
+                    return `https://open.spotify.com${clean}`;
+                }
+            }
+        }
+    } catch {
+        /* fall through */
+    }
+
+    const parts = value.split(":").filter(Boolean);
+    if (parts[0] !== "spotify" || parts.length < 3) return "";
+    if (parts[1] === "user" && parts.includes("playlist")) {
+        return `https://open.spotify.com/playlist/${parts[parts.length - 1]}`;
+    }
+    return `https://open.spotify.com/${parts[1]}/${parts[parts.length - 1]}`;
+}
+
+async function copyTextToClipboard(text) {
+    if (navigator.clipboard?.writeText) {
+        try {
+            await navigator.clipboard.writeText(text);
+            return true;
+        } catch {
+            /* fall through */
+        }
+    }
+
+    try {
+        const ta = document.createElement("textarea");
+        ta.value = text;
+        ta.setAttribute("readonly", "");
+        ta.style.cssText = "position:fixed;left:-9999px;top:0";
+        document.body.appendChild(ta);
+        ta.select();
+        const ok = document.execCommand("copy");
+        ta.remove();
+        return ok;
+    } catch {
+        return false;
+    }
+}
+
+async function handleShareCommand() {
+    try {
+        const target = getPaneLibraryTarget() || getNowPlayingLibraryTarget();
+        if (!target?.uri) {
+            print("Nothing to share. Open home/playlist panes or play a track.", "error");
+            return;
+        }
+        if (target.kind === "collection") {
+            print("Can't share a local collection.", "error");
+            return;
+        }
+
+        const url = uriToOpenSpotifyUrl(target.uri);
+        if (!url) {
+            print("Couldn't build a share link for this item.", "error");
+            return;
+        }
+
+        const copied = await copyTextToClipboard(url);
+        const label = libraryItemLabel(target.kind);
+        print(url, "log");
+        if (copied) {
+            print(`Copied ${label} link: ${target.name}`);
+        } else {
+            print(url);
+            print("Copy failed — link shown above.", "error");
+        }
+    } catch (err) {
+        print("Share error: " + err.message, "error");
+        console.error("SpoTUI share error:", err);
+    }
 }
 
 function handleNowPlayingCommand() {
