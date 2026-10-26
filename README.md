@@ -130,7 +130,7 @@ or `theme s` cycling `set` / `show` / scheme ids that start with `s`.
 | `queue` | current queue in side panes |
 | `like` / `unlike` | like track / album / playlist (pane selection or now playing) |
 | `np` / `info` | dump now-playing details (the bar is always visible) |
-| `share` | copy a Spotify link (pane selection or now playing) |
+| `share [album\|track]` | copy a Spotify link (`album` / `track` of now playing, or pane selection) |
 | `home` / `recent` / `rec` / `top` | Made for you (Daily Mix, Discover Weekly…) + Recents |
 | `lyrics [on\|off]` | synced lyrics panel (Spotify + lrclib); Esc closes |
 

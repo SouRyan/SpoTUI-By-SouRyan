@@ -1,6 +1,33 @@
+/* Spotify 1.3.0+ stopped mapping many hashed classes. Hide native chrome by
+   structure/testid so the TUI overlay is not fighting the new layout. */
+body:not(.spotui-spotify-enabled):not(.spotui-search-mode) .Root {
+    visibility: hidden !important;
+}
+
+body:not(.spotui-spotify-enabled):not(.spotui-search-mode) .Root > *:not(.Root__now-playing-bar):not(.main-appShell-playbackBar):not([data-testid="now-playing-bar"]) {
+    display: none !important;
+    content-visibility: hidden !important;
+    pointer-events: none !important;
+    contain: strict;
+}
+
+body:not(.spotui-spotify-enabled):not(.spotui-search-mode) .Root__now-playing-bar,
+body:not(.spotui-spotify-enabled):not(.spotui-search-mode) .main-appShell-playbackBar,
+body:not(.spotui-spotify-enabled):not(.spotui-search-mode) [data-testid="now-playing-bar"] {
+    visibility: visible !important;
+}
+
+body.spotui-lyrics-open:not(.spotui-spotify-enabled):not(.spotui-search-mode) .Root__right-sidebar,
+body.spotui-lyrics-open:not(.spotui-spotify-enabled):not(.spotui-search-mode) [data-testid="right-sidebar"] {
+    visibility: visible !important;
+}
+
 .Root__main-view,
 .Root__nav-bar,
 .main-topBar-container,
+.main-appShell-topBar,
+[data-testid="topbar"],
+[data-testid="topbar-content-wrapper"],
 .main-yourLibraryX-libraryRootlist,
 .main-yourLibraryX-entryPoints,
 .main-buddy-list,
@@ -124,19 +151,39 @@ body.spotui-spotify-enabled .main-appShell-topBar .main-globalNav-searchInputTex
     display: none !important;
 }
 
-.Root__now-playing-bar {
+.Root__now-playing-bar,
+.main-appShell-playbackBar,
+[data-testid="now-playing-bar"] {
     display: flex !important;
     position: fixed !important;
     bottom: 0;
     left: 0;
     right: 0;
     width: 100vw !important;
-    height: 90px;
+    min-height: 72px;
+    height: auto;
+    max-height: 120px;
     border-radius: 0 !important;
+    background: var(--spotui-bg, #000) !important;
+    border-top: 1px solid var(--spotui-accent, #ff8c42) !important;
+    box-shadow: inset 0 1px 0 rgba(var(--spotui-accent-rgb, 255, 140, 66), 0.18) !important;
+    color: var(--spotui-text, #ddd) !important;
+    font-family: var(--spotui-font, "JetBrains Mono", monospace) !important;
+    z-index: 10010 !important;
 }
 
-body.spotui-bar-hidden .Root__now-playing-bar {
+body.spotui-bar-hidden .Root__now-playing-bar,
+body.spotui-bar-hidden .main-appShell-playbackBar,
+body.spotui-bar-hidden [data-testid="now-playing-bar"] {
     display: none !important;
+}
+
+[data-testid="now-playing-bar"] button,
+[data-testid="now-playing-bar"] [role="button"],
+[data-testid="now-playing-widget"] button,
+[data-testid="now-playing-widget-v2"] button {
+    border-radius: 0 !important;
+    color: var(--spotui-accent, #ff8c42) !important;
 }
 
 .Root__now-playing-bar .main-nowPlayingBar-container,
@@ -447,6 +494,17 @@ body.spotui-lyrics-open #spotui-tui {
     max-width: calc(100vw - 420px) !important;
 }
 
+body.spotui-search-mode .Root,
+body.spotui-search-mode .Root__main-view,
+body.spotui-search-mode .main-view-container,
+body.spotui-search-mode .main-topBar-container,
+body.spotui-search-mode .main-appShell-topBar,
+body.spotui-search-mode [data-testid="topbar"],
+body.spotui-search-mode [data-testid="topbar-content-wrapper"] {
+    display: revert !important;
+    visibility: visible !important;
+}
+
 body.spotui-search-mode #spotui-tui {
     display: none !important;
 }
@@ -455,17 +513,55 @@ body.spotui-search-mode #spotui-controls {
     display: none !important;
 }
 
-body.spotui-tui-hidden #spotui-back-btn,
+#spotui-back-btn {
+    -webkit-app-region: no-drag !important;
+    app-region: no-drag !important;
+    pointer-events: auto !important;
+}
+
+body.spotui-tui-hidden:not(.spotui-spotify-enabled):not(.spotui-search-mode) #spotui-back-btn {
+    position: fixed !important;
+    top: 12px !important;
+    left: 50% !important;
+    right: auto !important;
+    transform: translateX(-50%) !important;
+    z-index: 20100 !important;
+    display: block !important;
+    min-width: 0;
+    padding: 6px 12px;
+    font-size: 12px;
+    line-height: 1.2;
+}
+
 body.spotui-spotify-enabled #spotui-back-btn,
 body.spotui-search-mode #spotui-back-btn {
-    position: fixed !important;
-    top: 50% !important;
-    left: 50% !important;
-    transform: translate(-50%, -50%) !important;
-    z-index: 10020 !important;
-    display: block !important;
-    min-width: 160px;
-    padding: 10px 16px;
+    position: relative !important;
+    top: auto !important;
+    left: auto !important;
+    right: auto !important;
+    transform: none !important;
+    z-index: 5 !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    align-self: center !important;
+    flex: 0 0 auto !important;
+    margin: 0 0 0 8px !important;
+    min-width: 0;
+    padding: 6px 12px;
+    font-size: 12px;
+    line-height: 1.2;
+}
+
+body.spotui-spotify-enabled .main-globalNav-searchContainer,
+body.spotui-spotify-enabled .main-globalNav-searchSection,
+body.spotui-spotify-enabled .main-globalNav-searchInputContainer,
+body.spotui-search-mode .main-globalNav-searchContainer,
+body.spotui-search-mode .main-globalNav-searchSection,
+body.spotui-search-mode .main-globalNav-searchInputContainer {
+    display: flex !important;
+    align-items: center !important;
+    gap: 8px !important;
+    overflow: visible !important;
 }
 
 body:not(.spotui-tui-hidden):not(.spotui-spotify-enabled):not(.spotui-search-mode) #spotui-back-btn {
@@ -484,7 +580,12 @@ body.spotui-spotify-enabled .main-topBar-topbarContent {
     display: flex !important;
 }
 
-button,
-[role="button"] {
+#spotui-tui button,
+#spotui-popup button,
+#spotui-back-btn,
+.Root__now-playing-bar button,
+.Root__now-playing-bar [role="button"],
+[data-testid="now-playing-bar"] button,
+[data-testid="now-playing-bar"] [role="button"] {
     border-radius: 0 !important;
 }
