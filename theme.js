@@ -1228,6 +1228,7 @@ function createCopyButton() {
             document.body.classList.remove("spotui-search-mode");
             hideBtn.textContent = "Hide TUI";
             stopBackButtonDock();
+            if (!playerBarHidden) schedulePlayerBarKeepMarks();
         }
     });
 
@@ -1253,6 +1254,7 @@ function createCopyButton() {
         spotifyBtn.textContent = "Enable Spotify";
         hideBtn.textContent = "Hide TUI";
         stopBackButtonDock();
+        if (!playerBarHidden) schedulePlayerBarKeepMarks();
         syncLyricsState();
     });
     backBtnRef = backBtn;
@@ -5013,6 +5015,56 @@ function restoreBackdrop() {
     }
 }
 
+function findNativePlayerBar() {
+    return document.querySelector(
+        '[data-testid="now-playing-bar"], aside[data-testid="now-playing-bar"], .Root__now-playing-bar, .main-appShell-playbackBar, .qEDMggbdvFQOvRAwmrIT'
+    );
+}
+
+function clearPlayerBarKeepMarks() {
+    document.querySelectorAll("[data-spotui-bar-keep]").forEach((el) => {
+        el.removeAttribute("data-spotui-bar-keep");
+    });
+}
+
+function markPlayerBarAncestors() {
+    clearPlayerBarKeepMarks();
+    if (playerBarHidden || !document.body) return;
+    if (document.body.classList.contains("spotui-spotify-enabled")) return;
+    if (document.body.classList.contains("spotui-search-mode")) return;
+
+    const bar = findNativePlayerBar();
+    if (!bar) return;
+
+    let node = bar;
+    while (node && node !== document.body) {
+        node.setAttribute("data-spotui-bar-keep", "1");
+        if (node.classList?.contains("Root")) break;
+        node = node.parentElement;
+    }
+}
+
+let playerBarKeepTimer = null;
+let playerBarKeepTries = 0;
+
+function schedulePlayerBarKeepMarks() {
+    markPlayerBarAncestors();
+    if (playerBarKeepTimer) {
+        clearInterval(playerBarKeepTimer);
+        playerBarKeepTimer = null;
+    }
+    if (playerBarHidden) return;
+    playerBarKeepTries = 0;
+    playerBarKeepTimer = setInterval(() => {
+        playerBarKeepTries += 1;
+        markPlayerBarAncestors();
+        if (playerBarKeepTries >= 40) {
+            clearInterval(playerBarKeepTimer);
+            playerBarKeepTimer = null;
+        }
+    }, 500);
+}
+
 function setPlayerBarHidden(hidden) {
     playerBarHidden = !!hidden;
     document.body.classList.toggle("spotui-bar-hidden", playerBarHidden);
@@ -5021,6 +5073,8 @@ function setPlayerBarHidden(hidden) {
     } catch {
         /* ignore */
     }
+    if (playerBarHidden) clearPlayerBarKeepMarks();
+    else schedulePlayerBarKeepMarks();
 }
 
 function restorePlayerBar() {
