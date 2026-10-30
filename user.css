@@ -23,9 +23,6 @@ body:not(.spotui-spotify-enabled):not(.spotui-search-mode):not(.spotui-bar-hidde
     pointer-events: auto !important;
     contain: none !important;
     overflow: visible !important;
-    transform: none !important;
-    filter: none !important;
-    clip-path: none !important;
 }
 
 body:not(.spotui-spotify-enabled):not(.spotui-search-mode):not(.spotui-bar-hidden) .Root :has(:is(.Root__now-playing-bar, .main-appShell-playbackBar, [data-testid="now-playing-bar"])) > *:not(:has(:is(.Root__now-playing-bar, .main-appShell-playbackBar, [data-testid="now-playing-bar"]))):not(:is(.Root__now-playing-bar, .main-appShell-playbackBar, [data-testid="now-playing-bar"])) {
@@ -607,7 +604,19 @@ body:not(.spotui-tui-hidden):not(.spotui-spotify-enabled):not(.spotui-search-mod
 }
 
 #spotui-popup {
-    width: min(480px, calc(100vw - 32px)) !important;
+    position: absolute !important;
+    top: 50% !important;
+    left: 50% !important;
+    right: auto !important;
+    bottom: auto !important;
+    transform: translate(-50%, -50%) !important;
+    width: min(480px, calc(100% - 32px)) !important;
+    max-height: min(60vh, calc(100% - 48px)) !important;
+    z-index: 20 !important;
+}
+
+#spotui-popup.theme-custom-popup {
+    width: min(520px, calc(100% - 32px)) !important;
 }
 
 .main-topBar-topbarContent {

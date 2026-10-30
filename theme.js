@@ -416,6 +416,28 @@ body.spotui-lyrics-panel #spotui-lyrics {
     color: var(--spotui-contrast);
 }
 
+.spotui-pane-row.is-header {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    color: var(--spotui-dim);
+    overflow: hidden;
+    white-space: nowrap;
+}
+
+.spotui-pane-row.is-header::before,
+.spotui-pane-row.is-header::after {
+    content: "────────────────────────────────────────────────────────────────";
+    flex: 1 1 0;
+    min-width: 2ch;
+    overflow: hidden;
+    white-space: nowrap;
+}
+
+.spotui-pane-row.is-header.selected {
+    color: var(--spotui-contrast);
+}
+
 .spotui-pane-empty {
     color: var(--spotui-dim);
     padding: 8px 6px;
@@ -610,12 +632,14 @@ body.spotui-tui-hidden #spotui-popup {
 }
 
 #spotui-popup {
-    position: fixed;
+    position: absolute;
     top: 50%;
     left: 50%;
+    right: auto;
+    bottom: auto;
     transform: translate(-50%, -50%);
-    width: min(480px, calc(100vw - 32px));
-    max-height: 60vh;
+    width: min(480px, calc(100% - 32px));
+    max-height: min(60vh, calc(100% - 48px));
     background: var(--spotui-bg);
     border: 2px solid var(--spotui-accent);
     border-radius: 6px;
@@ -699,7 +723,7 @@ body.spotui-tui-hidden #spotui-popup {
     opacity: 0.8;
 }
 #spotui-popup.theme-custom-popup {
-    width: min(520px, calc(100vw - 32px));
+    width: min(520px, calc(100% - 32px));
 }
 .popup-font-grid {
     display: grid;
@@ -1100,7 +1124,14 @@ const STATUS_TIMEOUT_MS = 5000;
 const LYRICS_POLL_MS = 8000;
 const PLAYLIST_PAGE_SIZE = 200;
 const PLAYLIST_MAX_TRACKS = 10000;
-const SEARCH_RESULT_LIMIT = 25;
+const SEARCH_RESULT_LIMIT = 50;
+const SEARCH_TRACK_LIMIT = 50;
+const SEARCH_ALBUM_LIMIT = 50;
+const SEARCH_ARTIST_LIMIT = 50;
+const SEARCH_MIX_LIMIT = 10;
+const ARTIST_ALBUMS_PAGE = 50;
+const ARTIST_ALBUMS_MAX = 1000;
+const ARTIST_APPEARS_MAX = 100;
 
 let tuiMode = "command";
 
@@ -1442,6 +1473,7 @@ Type /help
         if (paneMode && (e.key === "Escape" || e.key === "Tab")) {
             e.preventDefault();
             if (e.key === "Escape") {
+                if (paneMode === "search" && handleSearchPaneEscape()) return;
                 if ((paneMode === "browse" || paneMode === "home") && paneDrilledDown) {
                     clearPaneRight();
                     return;
@@ -1821,8 +1853,13 @@ async function execute(cmd) {
     }
 
     if (command === "search" || command === "s") {
-        if (argText) {
-            await openSearchPopup(argText);
+        const parsed = parseSearchArgs(argText);
+        if (parsed.filter && !parsed.query) {
+            print(`Usage: s ${parsed.filter} <terms>`, "error");
+            return;
+        }
+        if (parsed.query) {
+            await openSearchPopup(parsed.query, parsed.scope);
             return;
         }
         document.body.classList.add("spotui-search-mode");
@@ -1982,7 +2019,11 @@ const HELP_CATEGORIES = [
         id: "library",
         label: "Library",
         entries: [
-            ["search | s <terms>", "search tracks (no terms opens Spotify search)", "search", "s"],
+            ["search | s <terms>", "search mix, albums, tracks (no terms opens Spotify search)", "search", "s"],
+            ["s album <terms>", "search albums only"],
+            ["s artist <terms>", "search artists only"],
+            ["s mix <terms>", "search mix only"],
+            ["s tracks <terms>", "search tracks only"],
             ["add <terms>", "queue the top search result"],
             ["playlist", "browse your playlists"],
             ["list", "tracks of the playing playlist"],
@@ -2145,6 +2186,11 @@ function getArgCompletions(command, args, partial) {
                 : [];
         case "share":
             return args.length === 0 ? filterCompletions(["album", "track"], partial) : [];
+        case "search":
+        case "s":
+            return args.length === 0
+                ? filterCompletions(["album", "artist", "mix", "tracks"], partial)
+                : [];
         case "tui":
             if (args.length === 0) return filterCompletions(["-m"], partial);
             if (args[0] === "-m" && args.length === 1) {
@@ -2158,6 +2204,13 @@ function getArgCompletions(command, args, partial) {
 
 function completionWantsSpace(parsed, match) {
     if (parsed.kind === "command") return true;
+    if (
+        (parsed.command === "search" || parsed.command === "s") &&
+        parsed.args.length === 0 &&
+        (match === "album" || match === "artist" || match === "mix" || match === "tracks")
+    ) {
+        return true;
+    }
     if (parsed.command === "theme" && parsed.args.length === 0 && match === "set") return true;
     if (parsed.command === "tui" && parsed.args.length === 0 && match === "-m") return true;
     if (
@@ -2306,12 +2359,32 @@ let lastPlaylistContextUri = null;
 let paneMode = null;
 let paneFocus = "left";
 let paneRightLoaded = false;
+let paneRightLoading = false;
 let paneDrilledDown = false;
 let paneLeftItems = [];
 let paneSearchQuery = "";
+let paneSearchRootItems = [];
+let paneSearchRootSelected = 0;
+let paneSearchArtists = [];
+let paneSearchTracks = [];
+let paneSearchScope = "all";
+let paneSearchEnrichSeq = 0;
+let paneSearchEnrichTimer = null;
 let panesBound = false;
 let paneLoadSeq = 0;
 let panePreviewTimer = null;
+const albumTracksCache = new Map();
+const ALBUM_TRACKS_CACHE_MAX = 80;
+
+function clearSearchCaches() {
+    albumTracksCache.clear();
+    paneSearchEnrichSeq += 1;
+    paneLoadSeq += 1;
+    clearTimeout(paneSearchEnrichTimer);
+    paneSearchEnrichTimer = null;
+    clearTimeout(panePreviewTimer);
+    panePreviewTimer = null;
+}
 
 function openHelpPopup(query) {
     const target = query ? findHelpTarget(query) : null;
@@ -2569,6 +2642,30 @@ function normalizeTrackItem(track, index = 0) {
     };
 }
 
+function coercePlayableTrack(entry, index = 0) {
+    if (!entry || typeof entry !== "object") return null;
+    const nested =
+        entry.track ||
+        entry.item?.data ||
+        entry.item?.track ||
+        entry.item ||
+        entry.data ||
+        entry.contextTrack ||
+        entry;
+    if (!nested || typeof nested !== "object") return null;
+    const uri =
+        nested.uri ||
+        entry.uri ||
+        (nested.id ? `spotify:track:${nested.id}` : "") ||
+        (entry.id ? `spotify:track:${entry.id}` : "");
+    if (!uri || !String(uri).includes(":track:")) return null;
+    const playable =
+        nested.isPlayable ?? nested.is_playable ?? entry.isPlayable ?? entry.is_playable;
+    if (playable === false) return null;
+    const normalized = normalizeTrackItem({ ...nested, ...entry, uri }, index);
+    return normalized.uri ? normalized : null;
+}
+
 function dedupeTracks(tracks) {
     const seen = new Set();
     const out = [];
@@ -2597,7 +2694,7 @@ function getSearchVariables(query, limit) {
         query,
         offset: 0,
         limit,
-        numberOfTopResults: Math.min(limit, 20),
+        numberOfTopResults: Math.min(limit, 50),
         includeAudiobooks: false,
         includeArtistHasConcertsField: false,
         includeLocalConcertsField: false,
@@ -2610,72 +2707,232 @@ function getSearchVariables(query, limit) {
     };
 }
 
-function unwrapSearchTrack(entry) {
+function emptySearchCatalog() {
+    return { artists: [], albums: [], tracks: [], playlists: [] };
+}
+
+function catalogHitCount(catalog) {
+    if (!catalog) return 0;
+    return (
+        (catalog.artists?.length || 0) +
+        (catalog.albums?.length || 0) +
+        (catalog.tracks?.length || 0) +
+        (catalog.playlists?.length || 0)
+    );
+}
+
+function trimSearchCatalog(catalog) {
+    return {
+        artists: (catalog?.artists || []).slice(0, SEARCH_ARTIST_LIMIT),
+        albums: (catalog?.albums || []).slice(0, SEARCH_ALBUM_LIMIT),
+        tracks: (catalog?.tracks || []).slice(0, SEARCH_TRACK_LIMIT),
+        playlists: (catalog?.playlists || []).slice(0, SEARCH_MIX_LIMIT),
+    };
+}
+
+function unwrapSearchNode(entry) {
     if (!entry) return null;
-    // GraphQL searchTracks nests as items[].item.data; some mappers flatten earlier.
     const data =
         entry?.item?.data ||
         entry?.item ||
         entry?.data ||
         entry?.track ||
+        entry?.album ||
+        entry?.artist ||
+        entry?.playlist ||
+        entry?.playlistV2 ||
         entry?.contextTrack ||
+        entry?.node?.data ||
+        entry?.node ||
         entry;
     if (!data || typeof data !== "object") return null;
-    if (data.__typename && data.__typename !== "Track" && !data.uri?.includes(":track:")) {
-        return null;
-    }
     return data;
 }
 
-function extractTracksFromSearchPayload(payload) {
-    if (!payload) return [];
-
-    if (Array.isArray(payload)) {
-        return payload.map(unwrapSearchTrack).filter(Boolean);
+function searchHitType(data, hint) {
+    if (hint === "track" || hint === "album" || hint === "artist" || hint === "playlist") {
+        return hint;
     }
+    const uri = String(data?.uri || data?.data?.uri || "");
+    const typename = String(data?.__typename || data?.type || "");
+    if (uri.includes(":track:") || /^track$/i.test(typename)) return "track";
+    if (uri.includes(":album:") || /album/i.test(typename)) return "album";
+    if (uri.includes(":artist:") || /artist/i.test(typename)) return "artist";
+    if (uri.includes(":playlist:") || /playlist/i.test(typename)) return "playlist";
+    return homeCardTypeFromUri(uri);
+}
 
-    const root = payload.data || payload;
-    if (Array.isArray(root?.tracks?.items)) {
-        return root.tracks.items.map(unwrapSearchTrack).filter(Boolean);
-    }
-
-    const search = root.searchV2 || root.search || root;
-    const buckets = [
-        search?.tracksV2,
-        search?.tracks,
-        root?.tracksV2,
-        root?.tracks,
-        search?.topResultsV2,
-        search?.topResults,
+function searchArtistNames(data) {
+    const groups = [
+        data?.artists?.items,
+        data?.artists,
+        data?.artist?.items,
+        data?.data?.artists?.items,
+        data?.data?.artists,
     ];
+    for (const group of groups) {
+        if (!Array.isArray(group) || !group.length) continue;
+        const names = group
+            .map((artist) => artist?.profile?.name || artist?.name)
+            .filter(Boolean);
+        if (names.length) return names.join(", ");
+    }
+    return getTrackArtist(data);
+}
 
-    const out = [];
-    for (const bucket of buckets) {
-        const items = bucket?.items || bucket?.itemsV2 || bucket?.edges || [];
-        for (const entry of items) {
-            const track = unwrapSearchTrack(entry?.node || entry);
-            if (track?.uri && String(track.uri).includes(":track:")) out.push(track);
-        }
-        if (out.length) break;
+function normalizeSearchHit(raw, typeHint, index = 0) {
+    const data = unwrapSearchNode(raw);
+    if (!data) return null;
+    const uri = data.uri || data.data?.uri || "";
+    if (!uri) return null;
+    const type = searchHitType(data, typeHint);
+    if (type !== "track" && type !== "album" && type !== "artist" && type !== "playlist") {
+        return null;
     }
 
+    const name =
+        data.name ||
+        data.profile?.name ||
+        data.data?.name ||
+        data.data?.profile?.name ||
+        getTrackTitle(data, index);
+    const owner =
+        data.owner?.display_name ||
+        data.owner?.name ||
+        data.data?.owner?.display_name ||
+        "";
+    const artist =
+        type === "artist" ? "" : type === "playlist" ? owner || searchArtistNames(data) : searchArtistNames(data);
+
+    return {
+        kind: "card",
+        type,
+        id: `${type}:${uri}`,
+        name: String(name || type),
+        subtitle: String(artist || ""),
+        uri: String(uri),
+        artist: artist || "",
+        section: type,
+    };
+}
+
+function dedupeSearchHits(hits) {
+    const seen = new Set();
+    const out = [];
+    for (const hit of hits) {
+        if (!hit?.uri || seen.has(hit.uri)) continue;
+        seen.add(hit.uri);
+        out.push(hit);
+    }
     return out;
 }
 
+function mergeSearchCatalogs(...catalogs) {
+    const merged = emptySearchCatalog();
+    for (const catalog of catalogs) {
+        if (!catalog) continue;
+        merged.artists.push(...(catalog.artists || []));
+        merged.albums.push(...(catalog.albums || []));
+        merged.tracks.push(...(catalog.tracks || []));
+        merged.playlists.push(...(catalog.playlists || []));
+    }
+    return {
+        artists: dedupeSearchHits(merged.artists),
+        albums: dedupeSearchHits(merged.albums),
+        tracks: dedupeSearchHits(merged.tracks),
+        playlists: dedupeSearchHits(merged.playlists),
+    };
+}
+
+function collectSearchBucketItems(bucket) {
+    if (!bucket) return [];
+    if (Array.isArray(bucket)) return bucket;
+    return bucket.items || bucket.itemsV2 || bucket.edges || [];
+}
+
+function takeSearchHits(bucket, typeHint, limit) {
+    const hits = [];
+    for (const entry of collectSearchBucketItems(bucket)) {
+        const hit = normalizeSearchHit(entry?.node || entry, typeHint, hits.length);
+        if (hit && (!typeHint || hit.type === typeHint)) hits.push(hit);
+        if (hits.length >= limit) break;
+    }
+    return dedupeSearchHits(hits);
+}
+
+function extractSearchCatalogFromPayload(payload) {
+    const catalog = emptySearchCatalog();
+    if (!payload) return catalog;
+
+    if (Array.isArray(payload)) {
+        for (const entry of payload) {
+            const hit = normalizeSearchHit(entry, "track", catalog.tracks.length);
+            if (hit?.type === "track") catalog.tracks.push(hit);
+        }
+        return trimSearchCatalog({ ...catalog, tracks: dedupeSearchHits(catalog.tracks) });
+    }
+
+    const root = payload.data || payload;
+    const search = root.searchV2 || root.search || root;
+
+    catalog.tracks = takeSearchHits(
+        search?.tracksV2 || search?.tracks || root?.tracksV2 || root?.tracks,
+        "track",
+        SEARCH_TRACK_LIMIT
+    );
+    catalog.albums = takeSearchHits(
+        search?.albumsV2 || search?.albums || root?.albumsV2 || root?.albums,
+        "album",
+        SEARCH_ALBUM_LIMIT
+    );
+    catalog.artists = takeSearchHits(
+        search?.artistsV2 || search?.artists || root?.artistsV2 || root?.artists,
+        "artist",
+        SEARCH_ARTIST_LIMIT
+    );
+    catalog.playlists = takeSearchHits(
+        search?.playlistsV2 || search?.playlists || root?.playlistsV2 || root?.playlists,
+        "playlist",
+        SEARCH_MIX_LIMIT
+    );
+
+    const topHits = takeSearchHits(
+        search?.topResultsV2 || search?.topResults || root?.topResultsV2 || root?.topResults,
+        null,
+        SEARCH_TRACK_LIMIT + SEARCH_ALBUM_LIMIT + SEARCH_ARTIST_LIMIT + SEARCH_MIX_LIMIT
+    );
+    for (const hit of topHits) {
+        if (hit.type === "track") catalog.tracks.push(hit);
+        else if (hit.type === "album") catalog.albums.push(hit);
+        else if (hit.type === "artist") catalog.artists.push(hit);
+        else if (hit.type === "playlist") catalog.playlists.push(hit);
+    }
+
+    return trimSearchCatalog({
+        artists: dedupeSearchHits(catalog.artists),
+        albums: dedupeSearchHits(catalog.albums),
+        tracks: dedupeSearchHits(catalog.tracks),
+        playlists: dedupeSearchHits(catalog.playlists),
+    });
+}
+
 function normalizeSearchTrack(track, index = 0) {
+    const hit = normalizeSearchHit(track, "track", index);
+    if (hit) {
+        return { uri: hit.uri, name: hit.name, artist: hit.artist };
+    }
     const base = normalizeTrackItem(track, index);
     if (base.artist) return base;
+    return { ...base, artist: searchArtistNames(track) };
+}
 
-    // GraphQL artists live under artists.items[].profile.name
-    const artists = track?.artists?.items || track?.artists || [];
-    const names = (Array.isArray(artists) ? artists : [])
-        .map((artist) => artist?.profile?.name || artist?.name)
-        .filter(Boolean);
-
-    return {
-        ...base,
-        artist: names.join(", "),
-    };
+function catalogToTracks(catalog) {
+    return (catalog?.tracks || []).map((hit, index) => ({
+        uri: hit.uri,
+        name: hit.name,
+        artist: hit.artist || hit.subtitle || "",
+        index,
+    }));
 }
 
 // Search route modules register GraphQL defs lazily; a silent visit primes them.
@@ -2727,8 +2984,9 @@ async function searchViaGraphQL(query, limit) {
     await ensureSearchDefinitions();
 
     const variables = getSearchVariables(query, limit);
-    const candidates = ["searchTracks", "searchDesktop", "searchModalResults"];
+    const candidates = ["searchDesktop", "searchModalResults", "searchTracks"];
     let lastError = null;
+    let best = emptySearchCatalog();
 
     for (const name of candidates) {
         const definition = defs[name];
@@ -2739,68 +2997,66 @@ async function searchViaGraphQL(query, limit) {
                 lastError = new Error(res.errors[0]?.message || `${name} GraphQL error`);
                 continue;
             }
-            return extractTracksFromSearchPayload(res);
+            best = mergeSearchCatalogs(best, extractSearchCatalogFromPayload(res));
         } catch (err) {
             lastError = err;
             console.warn(`SpoTUI GraphQL ${name} failed:`, err);
         }
     }
 
+    if (catalogHitCount(best)) return best;
     if (lastError) throw lastError;
     return null;
 }
 
-async function searchViaWebApi(query, limit) {
-    const url =
-        `https://api.spotify.com/v1/search?q=${encodeURIComponent(query)}` +
-        `&type=track&limit=${limit}`;
-
-    let cosmosError = null;
-    if (Spicetify.CosmosAsync?.get) {
-        try {
-            const res = await Spicetify.CosmosAsync.get(url);
-            if (res?.error) {
-                throw new Error(res.error.message || res.error.status || "Web API error");
-            }
-            if (res?.tracks) return res.tracks.items || [];
-        } catch (err) {
-            cosmosError = err;
-            console.warn("SpoTUI CosmosAsync search failed:", err);
-        }
-    }
-
-    const token = Spicetify.Platform?.Session?.accessToken;
-    if (!token) {
-        if (cosmosError) throw cosmosError;
-        return null;
-    }
-
-    const res = await fetch(url, {
-        headers: { Authorization: `Bearer ${token}` },
+function catalogFromWebSearchBody(body) {
+    if (!body) return emptySearchCatalog();
+    const mapItems = (items, type, limit) =>
+        dedupeSearchHits(
+            coerceList(items)
+                .map((item, index) => normalizeSearchHit(item, type, index))
+                .filter(Boolean)
+        ).slice(0, limit);
+    return trimSearchCatalog({
+        artists: mapItems(body.artists?.items, "artist", SEARCH_ARTIST_LIMIT),
+        albums: mapItems(body.albums?.items, "album", SEARCH_ALBUM_LIMIT),
+        tracks: mapItems(body.tracks?.items, "track", SEARCH_TRACK_LIMIT),
+        playlists: mapItems(body.playlists?.items, "playlist", SEARCH_MIX_LIMIT),
     });
-    if (!res.ok) {
-        throw new Error(`Web API ${res.status}`);
-    }
-    const body = await res.json();
-    return body?.tracks?.items || [];
 }
 
-async function searchTracks(query, limit = SEARCH_RESULT_LIMIT) {
+function searchTypesForScope(scope) {
+    if (scope === "album") return "album,artist";
+    if (scope === "artist") return "artist";
+    if (scope === "mix") return "playlist,artist";
+    if (scope === "track") return "track";
+    return "album,artist,playlist,track";
+}
+
+async function searchViaWebApi(query, limit = SEARCH_TRACK_LIMIT, scope = "all") {
+    const page = Math.min(Math.max(limit, SEARCH_ALBUM_LIMIT), 50);
+    const url =
+        `https://api.spotify.com/v1/search?q=${encodeURIComponent(query)}` +
+        `&type=${searchTypesForScope(scope)}&limit=${page}`;
+    const body = await spotifyWebApiRequest("GET", url);
+    if (!body?.tracks && !body?.albums && !body?.artists && !body?.playlists) return null;
+    return catalogFromWebSearchBody(body);
+}
+
+async function searchCatalog(query, limit = SEARCH_TRACK_LIMIT, scope = "all") {
     const errors = [];
 
     try {
-        const graphqlTracks = await searchViaGraphQL(query, limit);
-        if (graphqlTracks) {
-            return dedupeTracks(graphqlTracks.map((track, index) => normalizeSearchTrack(track, index)));
-        }
+        const webCatalog = await searchViaWebApi(query, limit, scope);
+        if (webCatalog && catalogHitCount(webCatalog)) return trimSearchCatalog(webCatalog);
     } catch (err) {
         errors.push(err);
     }
 
     try {
-        const webTracks = await searchViaWebApi(query, limit);
-        if (webTracks) {
-            return dedupeTracks(webTracks.map((track, index) => normalizeSearchTrack(track, index)));
+        const graphqlCatalog = await searchViaGraphQL(query, limit);
+        if (graphqlCatalog && catalogHitCount(graphqlCatalog)) {
+            return trimSearchCatalog(graphqlCatalog);
         }
     } catch (err) {
         errors.push(err);
@@ -2810,24 +3066,116 @@ async function searchTracks(query, limit = SEARCH_RESULT_LIMIT) {
     throw new Error(detail || "No working search backend available");
 }
 
-async function openSearchPopup(query) {
-    print(`Searching "${query}"...`);
+async function searchTracks(query, limit = SEARCH_RESULT_LIMIT) {
+    const catalog = await searchCatalog(query, Math.max(limit, SEARCH_TRACK_LIMIT));
+    return catalogToTracks(catalog).slice(0, limit);
+}
+
+function withSearchSectionHeaders(mix, albums, tracks, artists) {
+    const rows = [];
+    const push = (title, items, section) => {
+        if (!items?.length) return;
+        rows.push({
+            kind: "header",
+            id: `header:${section}`,
+            name: title,
+            uri: null,
+            section,
+        });
+        rows.push(...items);
+    };
+    push("Artists", artists, "artist");
+    push("Mix", mix, "mix");
+    push("Albums", albums, "album");
+    push("Tracks", tracks, "track");
+    return rows;
+}
+
+function parseSearchArgs(argText) {
+    const raw = String(argText || "").trim();
+    if (!raw) return { scope: "all", query: "", filter: "" };
+    const match = raw.match(
+        /^(albums?|álbum|álbuns|albuns?|artists?|artistas?|mixes?|tracks?|musicas?|músicas?)\b(?:\s+(.*))?$/i
+    );
+    if (!match) return { scope: "all", query: raw, filter: "" };
+    const kind = match[1]
+        .toLowerCase()
+        .normalize("NFD")
+        .replace(/[\u0300-\u036f]/g, "");
+    const query = String(match[2] || "").trim();
+    if (/^albums?$|^albuns?$/.test(kind)) return { scope: "album", query, filter: "album" };
+    if (/^artists?$|^artistas?$/.test(kind)) return { scope: "artist", query, filter: "artist" };
+    if (/^mixes?$/.test(kind)) return { scope: "mix", query, filter: "mix" };
+    return { scope: "track", query, filter: "tracks" };
+}
+
+function searchScopeLabel(scope) {
+    if (scope === "album") return "albums";
+    if (scope === "artist") return "artists";
+    if (scope === "mix") return "mix";
+    if (scope === "track") return "tracks";
+    return "search";
+}
+
+async function openSearchPopup(query, scope = "all") {
+    clearSearchCaches();
+    paneSearchScope = scope || "all";
+    print(`Searching ${searchScopeLabel(paneSearchScope)} "${query}"...`);
     try {
-        const tracks = await searchTracks(query);
-        if (!tracks.length) {
+        const catalog = await searchCatalog(query, SEARCH_TRACK_LIMIT, paneSearchScope);
+        const artists = paneSearchScope === "artist" ? catalog.artists || [] : [];
+        const mix =
+            paneSearchScope === "album" ||
+            paneSearchScope === "track" ||
+            paneSearchScope === "artist"
+                ? []
+                : (catalog.playlists || []).map((item) => ({ ...item, section: "mix" }));
+        const albums =
+            paneSearchScope === "mix" ||
+            paneSearchScope === "track" ||
+            paneSearchScope === "artist"
+                ? []
+                : catalog.albums || [];
+        const tracks =
+            paneSearchScope === "album" ||
+            paneSearchScope === "mix" ||
+            paneSearchScope === "artist"
+                ? []
+                : catalog.tracks || [];
+        const rows = withSearchSectionHeaders(mix, albums, tracks, artists);
+        if (!rows.length && !catalog.artists?.length) {
             print(`No results for "${query}".`, "error");
             return;
         }
         paneSearchQuery = query;
-        paneLeftItems = [{ name: `Results for "${query}"`, uri: null }];
-        popupSelected = 0;
-        popupTracks = tracks;
-        popupTrackTitle = `Search: ${query}`;
+        paneSearchRootItems = [];
+        paneSearchRootSelected = 0;
+        paneSearchArtists = catalog.artists.slice();
+        paneSearchTracks = tracks.slice();
+        paneLeftItems = rows.length
+            ? rows
+            : withSearchSectionHeaders([], [], [], []);
+        popupSelected = firstSelectableHomeIndex(paneLeftItems);
+        popupTracks = [];
+        popupTrackTitle = "";
         popupTrackContext = null;
         popupTrackSelected = 0;
-        paneRightLoaded = true;
-        openPanes("search", "right");
-        print(`${tracks.length} result${tracks.length === 1 ? "" : "s"} for "${query}"`);
+        paneRightLoaded = false;
+        paneRightLoading = false;
+        paneDrilledDown = false;
+        openPanes("search", "left");
+        scheduleSearchPreview();
+        const artist = catalog.artists[0];
+        if (artist?.uri && paneSearchScope !== "track" && paneSearchScope !== "artist") {
+            scheduleArtistShelves(artist);
+        }
+        const total =
+            (artists.length || 0) + (mix.length || 0) + (albums.length || 0) + (tracks.length || 0);
+        if (!total && artist?.uri) {
+            print(`Loading ${searchScopeLabel(paneSearchScope)} for "${query}"...`);
+        } else {
+            print(`${total} result${total === 1 ? "" : "s"} for "${query}"`);
+        }
     } catch (err) {
         print("Search error: " + err.message, "error");
         console.error("SpoTUI search error:", err);
@@ -2855,29 +3203,111 @@ function assertWebApiPayload(res, label = "Web API") {
     return res;
 }
 
-async function spotifyWebApiRequest(method, path, body) {
-    const url = path.startsWith("http") ? path : `https://api.spotify.com/v1${path}`;
-    const verb = method.toLowerCase();
-    const errors = [];
+function withTimeout(promise, ms, label) {
+    return new Promise((resolve, reject) => {
+        const timer = setTimeout(() => reject(new Error(`${label} timed out`)), ms);
+        promise.then(
+            (value) => {
+                clearTimeout(timer);
+                resolve(value);
+            },
+            (err) => {
+                clearTimeout(timer);
+                reject(err);
+            }
+        );
+    });
+}
 
-    if (Spicetify.CosmosAsync?.[verb]) {
-        try {
-            const res =
-                body === undefined
-                    ? await Spicetify.CosmosAsync[verb](url)
-                    : await Spicetify.CosmosAsync[verb](url, body);
-            return assertWebApiPayload(res, "CosmosAsync");
-        } catch (err) {
-            errors.push(err);
-            console.warn(`SpoTUI CosmosAsync ${verb} failed:`, err);
+function firstResolved(promises) {
+    return new Promise((resolve, reject) => {
+        const errors = [];
+        let pending = promises.length;
+        if (!pending) {
+            reject(new Error("No request attempts"));
+            return;
         }
-    }
+        for (const promise of promises) {
+            Promise.resolve(promise).then(
+                resolve,
+                (err) => {
+                    errors.push(err);
+                    pending -= 1;
+                    if (!pending) reject(errors[0] || err);
+                }
+            );
+        }
+    });
+}
 
+function payloadHasItems(res) {
+    if (res == null) return false;
+    if (Array.isArray(res)) return res.length > 0;
+    if (typeof res !== "object") return false;
+    if (Array.isArray(res.tracks) && res.tracks.length) return true;
+    if (Array.isArray(res.items) && res.items.length) return true;
+    if (res.tracks?.items?.length) return true;
+    if (res.albums?.items?.length) return true;
+    if (res.artists?.items?.length) return true;
+    return false;
+}
+
+function firstUsefulResult(promises) {
+    return new Promise((resolve, reject) => {
+        const errors = [];
+        let pending = promises.length;
+        let fallback;
+        let hasFallback = false;
+        let settled = false;
+        if (!pending) {
+            reject(new Error("No request attempts"));
+            return;
+        }
+        const finish = (fn, value) => {
+            if (settled) return;
+            settled = true;
+            fn(value);
+        };
+        for (const promise of promises) {
+            Promise.resolve(promise).then(
+                (value) => {
+                    pending -= 1;
+                    if (payloadHasItems(value)) {
+                        finish(resolve, value);
+                        return;
+                    }
+                    if (!hasFallback) {
+                        fallback = value;
+                        hasFallback = true;
+                    }
+                    if (!pending) finish(resolve, hasFallback ? fallback : value);
+                },
+                (err) => {
+                    errors.push(err);
+                    pending -= 1;
+                    if (!pending) {
+                        if (hasFallback) finish(resolve, fallback);
+                        else finish(reject, errors[0] || err);
+                    }
+                }
+            );
+        }
+    });
+}
+
+function rememberAlbumTracks(uri, items) {
+    if (!uri || !items?.length) return items || [];
+    if (albumTracksCache.size >= ALBUM_TRACKS_CACHE_MAX) {
+        const oldest = albumTracksCache.keys().next().value;
+        albumTracksCache.delete(oldest);
+    }
+    albumTracksCache.set(uri, items);
+    return items;
+}
+
+async function spotifyWebApiFetch(method, url, body) {
     const token = Spicetify.Platform?.Session?.accessToken;
-    if (!token) {
-        throw errors[0] || new Error("No Spotify session token available");
-    }
-
+    if (!token) throw new Error("No Spotify session token available");
     const res = await fetch(url, {
         method: method.toUpperCase(),
         headers: {
@@ -2899,6 +3329,25 @@ async function spotifyWebApiRequest(method, path, body) {
     }
     const text = await res.text();
     return text ? JSON.parse(text) : null;
+}
+
+async function spotifyWebApiRequest(method, path, body) {
+    const url = path.startsWith("http") ? path : `https://api.spotify.com/v1${path}`;
+    const verb = method.toLowerCase();
+    const attempts = [];
+
+    attempts.push(withTimeout(spotifyWebApiFetch(method, url, body), 5000, "fetch"));
+
+    if (Spicetify.CosmosAsync?.[verb]) {
+        const pending =
+            body === undefined
+                ? Spicetify.CosmosAsync[verb](url)
+                : Spicetify.CosmosAsync[verb](url, body);
+        attempts.push(withTimeout(pending, 8000, "CosmosAsync"));
+    }
+
+    const res = await firstUsefulResult(attempts);
+    return res == null ? null : assertWebApiPayload(res, "Web API");
 }
 
 const MADE_FOR_YOU_CATEGORY_ID = "0JQ5DAt0tbjZptfcdMSKl3";
@@ -2924,11 +3373,20 @@ const MADE_FOR_YOU_CARD_HINT =
     /daily mix|descobertas|discover weekly|on repeat|repeat rewind|release radar|daylist|your dj|\bdj\b|mix$/i;
 
 function getSpotifyMarket() {
-    return (
-        Spicetify.Locale?.getLocale?.()?.slice?.(-2)?.toUpperCase?.() ||
-        Spicetify.Locale?._locale?.slice?.(-2)?.toUpperCase?.() ||
-        "US"
-    );
+    const country =
+        Spicetify.Platform?.Session?.country ||
+        Spicetify.Platform?.session?.country ||
+        "";
+    if (/^[A-Za-z]{2}$/.test(country)) return country.toUpperCase();
+    const loc = String(Spicetify.Locale?.getLocale?.() || Spicetify.Locale?._locale || "");
+    const matched = loc.match(/-([A-Za-z]{2})$/);
+    if (matched) return matched[1].toUpperCase();
+    return "";
+}
+
+function marketQuery() {
+    const market = getSpotifyMarket();
+    return market ? `&market=${encodeURIComponent(market)}` : "";
 }
 
 function getCookieValue(name) {
@@ -3561,66 +4019,401 @@ async function fetchRecentContextFallbackCards(limit = 30) {
     return [];
 }
 
-async function fetchAlbumItems(albumUri) {
+function extractAlbumTracksGraphql(payload) {
+    const root = payload?.data || payload;
+    const album = root?.albumUnion || root?.album || root;
+    const items = album?.tracksV2?.items || album?.tracks?.items || [];
+    return coerceList(items)
+        .map((entry) => entry?.track || entry?.item?.data || entry?.item || entry?.data || entry)
+        .filter((track) => track?.uri && String(track.uri).includes(":track:"));
+}
+
+async function fetchAlbumTracksWeb(albumUri) {
     const id = String(albumUri || "").split(":").pop();
     if (!id) return [];
+    const res = await spotifyWebApiRequest(
+        "GET",
+        `/albums/${encodeURIComponent(id)}/tracks?limit=50${marketQuery()}`
+    );
+    return coerceList(res?.items).map((track, index) => ({
+        ...track,
+        uri: track.uri || (track.id ? `spotify:track:${track.id}` : ""),
+        album: track.album || { name: "" },
+        index,
+    }));
+}
 
-    if (Spicetify.Platform?.AlbumAPI?.getTracks) {
-        try {
-            const res = await Spicetify.Platform.AlbumAPI.getTracks(albumUri);
-            const items = coerceList(res?.items || res);
-            if (items.length) return items;
-        } catch (err) {
-            console.warn("SpoTUI AlbumAPI.getTracks failed:", err);
-        }
+async function fetchAlbumItems(albumUri) {
+    const cached = albumTracksCache.get(albumUri);
+    if (cached?.length) return cached;
+
+    try {
+        const webItems = await fetchAlbumTracksWeb(albumUri);
+        if (webItems.length) return rememberAlbumTracks(albumUri, webItems);
+    } catch (err) {
+        console.warn("SpoTUI album web tracks failed:", err);
     }
 
     const request = Spicetify.GraphQL?.Request;
     const defs = Spicetify.GraphQL?.Definitions;
     if (request && defs?.queryAlbumTracks) {
         try {
-            const res = await request(defs.queryAlbumTracks, {
-                uri: albumUri,
-                offset: 0,
-                limit: 100,
-            });
+            const res = await withTimeout(
+                request(defs.queryAlbumTracks, { uri: albumUri, offset: 0, limit: 100 }),
+                4000,
+                "queryAlbumTracks"
+            );
             if (!res?.errors?.length) {
-                const tracks = [];
-                const visit = (node, depth = 0) => {
-                    if (!node || depth > 8) return;
-                    if (Array.isArray(node)) {
-                        node.forEach((item) => visit(item, depth + 1));
-                        return;
-                    }
-                    if (typeof node !== "object") return;
-                    const uri = node.uri || node.data?.uri;
-                    if (uri && String(uri).includes(":track:")) {
-                        tracks.push(node.data || node);
-                        return;
-                    }
-                    for (const value of Object.values(node)) {
-                        if (value && typeof value === "object") visit(value, depth + 1);
-                    }
-                };
-                visit(res);
-                if (tracks.length) return tracks;
+                const tracks = extractAlbumTracksGraphql(res);
+                if (tracks.length) return rememberAlbumTracks(albumUri, tracks);
             }
         } catch (err) {
             console.warn("SpoTUI queryAlbumTracks failed:", err);
         }
     }
 
-    const market = getSpotifyMarket();
+    if (Spicetify.Platform?.AlbumAPI?.getTracks) {
+        try {
+            const res = await withTimeout(
+                Spicetify.Platform.AlbumAPI.getTracks(albumUri),
+                2500,
+                "AlbumAPI"
+            );
+            const items = coerceList(res?.items || res);
+            if (items.length) return rememberAlbumTracks(albumUri, items);
+        } catch (err) {
+            console.warn("SpoTUI AlbumAPI.getTracks failed:", err);
+        }
+    }
+
+    return [];
+}
+
+async function graphqlTry(names, variables, timeoutMs = 4000) {
+    const request = Spicetify.GraphQL?.Request;
+    const defs = Spicetify.GraphQL?.Definitions;
+    if (!request || !defs) return null;
+    for (const name of names) {
+        const definition = defs[name];
+        if (!definition) continue;
+        try {
+            const res = await withTimeout(request(definition, variables), timeoutMs, name);
+            if (!res?.errors?.length) return res;
+        } catch (err) {
+            console.warn(`SpoTUI GraphQL ${name} failed:`, err);
+        }
+    }
+    return null;
+}
+
+function extractArtistTopTracksGraphql(payload) {
+    const root = payload?.data || payload;
+    const artist = root?.artistUnion || root?.artist || root;
+    const buckets = [
+        artist?.discography?.topTracks?.items,
+        artist?.topTracks?.items,
+        artist?.tracks?.items,
+        artist?.discography?.popularReleasesAlbums?.items,
+    ];
+    const out = [];
+    for (const bucket of buckets) {
+        for (const entry of coerceList(bucket)) {
+            const track = coercePlayableTrack(
+                entry?.track || entry?.item?.data || entry?.item || entry?.data || entry
+            );
+            if (track) out.push(track);
+        }
+        if (out.length) break;
+    }
+    return dedupeTracks(out);
+}
+
+function mapArtistAlbumHits(rawItems, section = "album") {
+    return dedupeArtistAlbumItems(rawItems)
+        .map((album, index) => {
+            const hit = normalizeSearchHit(album, "album", index);
+            return hit ? { ...hit, section } : null;
+        })
+        .filter(Boolean);
+}
+
+function asMixHit(raw, index, typeHint) {
+    const data = unwrapSearchNode(raw);
+    const uri = String(data?.uri || data?.data?.uri || "");
+    const hint = uri.includes(":playlist:")
+        ? "playlist"
+        : uri.includes(":album:")
+          ? "album"
+          : typeHint;
+    const hit = normalizeSearchHit(raw, hint, index);
+    return hit ? { ...hit, section: "mix" } : null;
+}
+
+function extractArtistAlbumsGraphql(payload) {
+    const root = payload?.data || payload;
+    const artist = root?.artistUnion || root?.artist || root;
+    const discog = artist?.discography || artist;
+    const raw = [];
+    const buckets = [
+        discog?.albums?.items,
+        discog?.singles?.items,
+        discog?.compilations?.items,
+        discog?.all?.items,
+    ];
+    for (const bucket of buckets) {
+        for (const entry of coerceList(bucket)) {
+            const release =
+                entry?.releases?.items?.[0] ||
+                entry?.album ||
+                entry?.item?.data ||
+                entry?.item ||
+                entry;
+            if (release) raw.push(release);
+        }
+    }
+    return mapArtistAlbumHits(raw);
+}
+
+function extractArtistMixGraphql(payload) {
+    const root = payload?.data || payload;
+    const artist = root?.artistUnion || root?.artist || root;
+    const related = artist?.relatedContent || artist;
+    const playlists = [];
+
+    const takePlaylists = (bucket) => {
+        for (const entry of coerceList(bucket)) {
+            const hit = asMixHit(entry, playlists.length, "playlist");
+            if (hit) playlists.push(hit);
+        }
+    };
+    takePlaylists(related?.featuring?.items);
+    takePlaylists(related?.discoveredOn?.items);
+    takePlaylists(related?.playlists?.items);
+
+    return dedupeSearchHits(playlists);
+}
+
+function searchResultTracksForArtist(name) {
+    const needle = String(name || "").toLowerCase();
+    if (!needle) return [];
+    const rows = paneSearchRootItems.length ? paneSearchRootItems : paneLeftItems;
+    return rows.filter((row) => {
+        if (row?.type !== "track" || !row.uri) return false;
+        const hay = `${row.artist || ""} ${row.subtitle || ""} ${row.name || ""}`.toLowerCase();
+        return hay.includes(needle);
+    });
+}
+
+async function fetchTracksByArtistSearch(artistName) {
+    if (!artistName) return [];
+    try {
+        const catalog = await searchViaWebApi(`artist:"${artistName}"`, SEARCH_TRACK_LIMIT);
+        const needle = String(artistName).toLowerCase();
+        return (catalog?.tracks || []).filter((track) =>
+            String(track.artist || track.subtitle || "").toLowerCase().includes(needle)
+        );
+    } catch (err) {
+        console.warn("SpoTUI artist search fallback failed:", err);
+        return [];
+    }
+}
+
+async function fetchArtistAlbumsPage(artistId, offset = 0, groups = "album,single,compilation") {
     const res = await spotifyWebApiRequest(
         "GET",
-        `/albums/${encodeURIComponent(id)}/tracks?limit=50&market=${encodeURIComponent(market)}`
+        `/artists/${encodeURIComponent(artistId)}/albums` +
+            `?include_groups=${encodeURIComponent(groups)}` +
+            `&limit=${ARTIST_ALBUMS_PAGE}&offset=${offset}${marketQuery()}`
     );
-    return coerceList(res?.items).map((track, index) => ({
-        ...track,
-        uri: track.uri || `spotify:track:${track.id}`,
-        album: track.album || { name: "" },
-        index,
-    }));
+    const items = coerceList(res?.items);
+    return {
+        items,
+        next: Boolean(res?.next) && items.length >= ARTIST_ALBUMS_PAGE,
+    };
+}
+
+async function fetchArtistTopTracks(artistUri, artistName = "") {
+    const id = String(artistUri || "").split(":").pop();
+    if (!id) return [];
+    const market = getSpotifyMarket() || "US";
+
+    try {
+        const res = await spotifyWebApiRequest(
+            "GET",
+            `/artists/${encodeURIComponent(id)}/top-tracks?market=${encodeURIComponent(market)}`
+        );
+        const tracks = coerceList(res?.tracks)
+            .map((track, index) => coercePlayableTrack(track, index))
+            .filter(Boolean);
+        if (tracks.length) return tracks;
+    } catch (err) {
+        console.warn("SpoTUI artist top-tracks failed:", err);
+    }
+
+    for (const name of ["queryArtistOverview", "queryArtist", "queryArtistDiscographyTopTracks"]) {
+        try {
+            const gql = await graphqlTry([name], { uri: artistUri, locale: "", includePrerelease: false }, 2500);
+            const tracks = extractArtistTopTracksGraphql(gql);
+            if (tracks.length) return tracks;
+        } catch (err) {
+            console.warn(`SpoTUI artist GraphQL ${name} failed:`, err);
+        }
+    }
+
+    const api = Spicetify.Platform?.ArtistAPI;
+    if (api) {
+        for (const method of ["getTopTracks", "getTracks", "getContents"]) {
+            if (typeof api[method] !== "function") continue;
+            try {
+                const res = await withTimeout(api[method](artistUri), 2500, `ArtistAPI.${method}`);
+                const tracks = coerceList(res?.items || res?.tracks || res)
+                    .map((entry, index) => coercePlayableTrack(entry, index))
+                    .filter(Boolean);
+                if (tracks.length) return tracks;
+            } catch (err) {
+                console.warn(`SpoTUI ArtistAPI.${method} failed:`, err);
+            }
+        }
+    }
+
+    const local = searchResultTracksForArtist(artistName);
+    if (local.length) return local;
+
+    return fetchTracksByArtistSearch(artistName);
+}
+
+function albumGroupRank(item) {
+    const group = String(item?.album_group || item?.album_type || "").toLowerCase();
+    if (group === "album") return 0;
+    if (group === "compilation") return 1;
+    if (group === "single") return 2;
+    return 3;
+}
+
+function dedupeArtistAlbumItems(rawItems) {
+    const byUri = new Map();
+    for (const item of rawItems) {
+        const uri = item?.uri || (item?.id ? `spotify:album:${item.id}` : "");
+        if (!uri || byUri.has(uri)) continue;
+        byUri.set(uri, item);
+    }
+
+    return [...byUri.values()].sort((a, b) => {
+        const rank = albumGroupRank(a) - albumGroupRank(b);
+        if (rank) return rank;
+        return String(b.release_date || "").localeCompare(String(a.release_date || ""));
+    });
+}
+
+async function fetchArtistAppearsOn(artistId) {
+    const raw = [];
+    let offset = 0;
+    while (offset < ARTIST_APPEARS_MAX) {
+        const page = await fetchArtistAlbumsPage(artistId, offset, "appears_on");
+        raw.push(...page.items);
+        if (!page.next) break;
+        offset += ARTIST_ALBUMS_PAGE;
+    }
+    return mapArtistAlbumHits(raw, "mix");
+}
+
+async function fetchArtistMixPlaylistsBySearch(artistName) {
+    if (!artistName) return [];
+    try {
+        const res = await spotifyWebApiRequest(
+            "GET",
+            `/search?q=${encodeURIComponent(artistName)}&type=playlist&limit=20`
+        );
+        const needle = String(artistName).toLowerCase();
+        return coerceList(res?.playlists?.items)
+            .map((item, index) => asMixHit(item, index, "playlist"))
+            .filter(Boolean)
+            .filter((hit) => {
+                const hay = `${hit.name} ${hit.subtitle || ""}`.toLowerCase();
+                return hay.includes(needle) || /\bmix\b|this is|radio|aparece|feat/i.test(hay);
+            });
+    } catch (err) {
+        console.warn("SpoTUI artist mix search failed:", err);
+        return [];
+    }
+}
+
+async function fetchArtistMixGraphql(artistUri) {
+    for (const name of ["queryArtistOverview", "queryArtistRelatedContent", "queryArtist"]) {
+        try {
+            const gql = await graphqlTry([name], { uri: artistUri, locale: "", includePrerelease: false }, 2500);
+            const hits = extractArtistMixGraphql(gql);
+            if (hits.length) return hits;
+        } catch (err) {
+            console.warn(`SpoTUI artist mix GraphQL ${name} failed:`, err);
+        }
+    }
+    return [];
+}
+
+async function fetchArtistMix(artistUri, artistName = "") {
+    const id = String(artistUri || "").split(":").pop();
+    if (!id) return [];
+    const [gqlHits, searched] = await Promise.all([
+        fetchArtistMixGraphql(artistUri),
+        fetchArtistMixPlaylistsBySearch(artistName),
+    ]);
+    const playlists = [...gqlHits, ...searched].filter((hit) => hit.type === "playlist");
+    return dedupeSearchHits(playlists).slice(0, SEARCH_MIX_LIMIT);
+}
+
+async function collectArtistAlbums(artistUri, onPage) {
+    const id = String(artistUri || "").split(":").pop();
+    if (!id) return [];
+    const seq = paneSearchEnrichSeq;
+    const stillCurrent = () => seq === paneSearchEnrichSeq;
+    const raw = [];
+
+    try {
+        let offset = 0;
+        while (offset < ARTIST_ALBUMS_MAX) {
+            if (!stillCurrent()) return mapArtistAlbumHits(raw);
+            const page = await fetchArtistAlbumsPage(id, offset);
+            if (!stillCurrent()) return mapArtistAlbumHits(raw);
+            raw.push(...page.items);
+            const albums = mapArtistAlbumHits(raw);
+            onPage?.(albums);
+            if (!page.next) return albums;
+            offset += ARTIST_ALBUMS_PAGE;
+        }
+        return mapArtistAlbumHits(raw);
+    } catch (err) {
+        console.warn("SpoTUI artist albums web failed:", err);
+    }
+
+    try {
+        const collected = [];
+        let offset = 0;
+        while (offset < ARTIST_ALBUMS_MAX) {
+            if (!stillCurrent()) return dedupeSearchHits(collected);
+            const gql = await graphqlTry(
+                ["queryArtistDiscographyAlbums", "queryArtistDiscographyAll", "queryArtistOverview"],
+                { uri: artistUri, offset, limit: ARTIST_ALBUMS_PAGE, locale: "" }
+            );
+            if (!stillCurrent()) return dedupeSearchHits(collected);
+            const page = extractArtistAlbumsGraphql(gql);
+            if (!page.length) break;
+            collected.push(...page);
+            const albums = dedupeSearchHits(collected);
+            onPage?.(albums);
+            if (page.length < ARTIST_ALBUMS_PAGE) return albums;
+            offset += ARTIST_ALBUMS_PAGE;
+        }
+        return dedupeSearchHits(collected);
+    } catch (err) {
+        console.warn("SpoTUI artist albums GraphQL failed:", err);
+    }
+
+    return [];
+}
+
+async function fetchArtistAlbums(artistUri) {
+    return collectArtistAlbums(artistUri);
 }
 
 async function fetchLikedSongs(limit = 50) {
@@ -3769,55 +4562,86 @@ function firstSelectableHomeIndex(rows, preferSection = "") {
 }
 
 function formatHomeLeftLabel(item, idx) {
-    if (item?.kind === "header") return `── ${item.name} ──`;
+    if (item?.kind === "header") return item.name;
     const n = paneLeftItems.slice(0, idx + 1).filter((row) => row.kind !== "header").length;
-    const hint = item?.type && item.type !== "playlist" ? ` · ${item.type}` : "";
+    const hint =
+        item?.section === "mix"
+            ? " · mix"
+            : item?.type && item.type !== "playlist"
+              ? ` · ${item.type}`
+              : "";
     return `${n}. ${item.name}${hint}`;
+}
+
+function beginRightPaneLoad(title, contextUri) {
+    popupTrackTitle = title || "";
+    popupTrackContext = contextUri ? { uri: contextUri } : null;
+    popupTracks = [];
+    popupTrackSelected = 0;
+    paneRightLoaded = true;
+    paneRightLoading = true;
+}
+
+function finishRightPaneLoad() {
+    paneRightLoaded = true;
+    paneRightLoading = false;
+}
+
+function applyPaneTracks(item, items) {
+    popupTracks = dedupeTracks(
+        (items || []).map((entry, index) => coercePlayableTrack(entry, index)).filter(Boolean)
+    );
+    popupTrackTitle = item.name;
+    popupTrackContext = { uri: item.uri };
+    if (item.type === "playlist") lastPlaylistContextUri = item.uri;
+    const currentTrackUri = Spicetify.Player.data?.item?.uri;
+    popupTrackSelected = Math.max(findTrackIndexByUri(popupTracks, currentTrackUri), 0);
+    finishRightPaneLoad();
 }
 
 async function loadHomeItemIntoPane(item, { play = false, focusRight = true, silent = false } = {}) {
     if (!item || item.kind === "header" || !item.uri) return;
     const seq = ++paneLoadSeq;
-    if (!silent) print(`Loading ${item.name}...`);
 
     popupTrackTitle = item.name;
-    popupTracks = [];
-    popupTrackSelected = 0;
     popupTrackContext = { uri: item.uri };
-    paneRightLoaded = true;
+    if (play || focusRight) paneDrilledDown = true;
+
+    const cached = item.type === "album" || String(item.uri).includes(":album:")
+        ? albumTracksCache.get(item.uri)
+        : null;
+    if (cached?.length) {
+        applyPaneTracks(item, cached);
+    } else {
+        beginRightPaneLoad(item.name, item.uri);
+    }
     renderPanes();
+
+    if (play) {
+        playerPlayUri(item.uri);
+        print(`Playing: ${item.name}`);
+        if (focusRight) focusPane("right");
+    } else if (!silent) {
+        print(`Loading ${item.name}...`);
+    }
+
+    if (cached?.length && !play) return;
 
     try {
         const items = await fetchHomeItemTracks(item);
         if (seq !== paneLoadSeq) return;
-
-        popupTracks = dedupeTracks(
-            items
-                .filter((entry) => entry && entry.uri && entry.isPlayable !== false)
-                .map((entry, index) => normalizeTrackItem(entry, index))
-                .filter((track) => track.uri?.includes(":track:"))
-        );
-        popupTrackTitle = item.name;
-        popupTrackContext = { uri: item.uri };
-        if (item.type === "playlist") lastPlaylistContextUri = item.uri;
-        const currentTrackUri = Spicetify.Player.data?.item?.uri;
-        popupTrackSelected = Math.max(findTrackIndexByUri(popupTracks, currentTrackUri), 0);
-        paneRightLoaded = true;
-        if (play || focusRight) paneDrilledDown = true;
-
-        if (play) {
-            playerPlayUri(item.uri);
-            print(`Playing: ${item.name}`);
-        }
-
+        applyPaneTracks(item, items);
         renderPanes();
-        if (focusRight) focusPane("right");
-        if (!popupTracks.length) print(`No tracks in ${item.name}.`, "error");
+        if (focusRight && !play) focusPane("right");
+        if (!popupTracks.length && !silent) print(`No tracks in ${item.name}.`, "error");
     } catch (err) {
         if (seq !== paneLoadSeq) return;
-        popupTracks = [];
-        renderPanes();
-        print(`${item.name} error: ${err.message}`, "error");
+        finishRightPaneLoad();
+        if (!popupTracks.length) {
+            popupTracks = [];
+            renderPanes();
+            if (!silent) print(`${item.name} error: ${err.message}`, "error");
+        }
         console.error("SpoTUI home item error:", err);
     }
 }
@@ -3836,16 +4660,309 @@ function scheduleHomePreview() {
         return;
     }
 
-    popupTrackTitle = item.name;
-    popupTracks = [];
-    popupTrackSelected = 0;
-    popupTrackContext = { uri: item.uri };
-    paneRightLoaded = true;
+    beginRightPaneLoad(item.name, item.uri);
     renderPanes();
 
     panePreviewTimer = setTimeout(() => {
         loadHomeItemIntoPane(item, { play: false, focusRight: false, silent: true });
-    }, 220);
+    }, 280);
+}
+
+async function loadArtistTopTracksIntoPane(item, { silent = false } = {}) {
+    if (!item?.uri) return;
+    const seq = ++paneLoadSeq;
+    beginRightPaneLoad(item.name, item.uri);
+    renderPanes();
+
+    try {
+        let tracks = await fetchArtistTopTracks(item.uri, item.name);
+        if (!tracks.length) tracks = searchResultTracksForArtist(item.name);
+        if (seq !== paneLoadSeq) return;
+        applyPaneTracks(item, tracks);
+        renderPanes();
+        if (!popupTracks.length && !silent) print(`No tracks for ${item.name}.`, "error");
+    } catch (err) {
+        if (seq !== paneLoadSeq) return;
+        finishRightPaneLoad();
+        popupTracks = [];
+        renderPanes();
+        if (!silent) print(`${item.name} error: ${err.message}`, "error");
+        console.error("SpoTUI artist tracks error:", err);
+    }
+}
+
+function currentSearchTracks() {
+    if (paneSearchTracks.length) return paneSearchTracks;
+    return paneLeftItems.filter(
+        (row) =>
+            row.kind !== "header" &&
+            (row.type === "track" || String(row.uri || "").includes(":track:"))
+    );
+}
+
+function currentSearchAlbums() {
+    return paneLeftItems.filter(
+        (row) =>
+            row.kind !== "header" &&
+            row.section !== "mix" &&
+            (row.type === "album" || String(row.uri || "").includes(":album:"))
+    );
+}
+
+function applySearchCatalogRows(mix, albums, tracks, keepUri = "") {
+    const rows = withSearchSectionHeaders(mix, albums, tracks);
+    paneLeftItems = rows;
+    if (keepUri) {
+        const idx = rows.findIndex((row) => row.kind !== "header" && row.uri === keepUri);
+        popupSelected = idx >= 0 ? idx : firstSelectableHomeIndex(rows);
+    } else {
+        popupSelected = firstSelectableHomeIndex(rows);
+    }
+    renderPanes();
+}
+
+function scheduleArtistShelves(item) {
+    if (!item?.uri || paneMode !== "search" || paneDrilledDown) return;
+    clearTimeout(paneSearchEnrichTimer);
+    paneSearchEnrichTimer = setTimeout(() => {
+        refreshSearchArtistShelves(item);
+    }, 120);
+}
+
+async function refreshSearchArtistShelves(item) {
+    if (!item?.uri || paneMode !== "search" || paneDrilledDown) return;
+    if (paneSearchScope === "track" || paneSearchScope === "artist") return;
+    const seq = ++paneSearchEnrichSeq;
+    const wantAlbums = paneSearchScope === "all" || paneSearchScope === "album";
+    const wantMix = paneSearchScope === "all" || paneSearchScope === "mix";
+    let albums = wantAlbums ? currentSearchAlbums() : [];
+    let mix = wantMix
+        ? paneLeftItems.filter((row) => row.kind !== "header" && row.section === "mix")
+        : [];
+    const tracks = paneSearchScope === "all" ? currentSearchTracks() : [];
+    const redraw = () => {
+        if (seq !== paneSearchEnrichSeq || paneMode !== "search" || paneDrilledDown) return;
+        applySearchCatalogRows(mix, albums, tracks, paneLeftItems[popupSelected]?.uri || "");
+    };
+
+    const mixPromise = wantMix
+        ? fetchArtistMix(item.uri, item.name).then((hits) => {
+              if (hits.length) mix = hits;
+              redraw();
+          })
+        : Promise.resolve();
+
+    if (wantAlbums) {
+        const fetchedAlbums = await collectArtistAlbums(item.uri, (next) => {
+            if (next.length) albums = next;
+            redraw();
+        });
+        if (fetchedAlbums.length) albums = fetchedAlbums;
+        redraw();
+    }
+    await mixPromise;
+    redraw();
+}
+
+async function enterArtistDiscography(item) {
+    if (!item?.uri) return;
+    paneLoadSeq += 1;
+    const seq = ++paneSearchEnrichSeq;
+    if (!paneSearchRootItems.length) {
+        paneSearchRootItems = paneLeftItems.slice();
+        paneSearchRootSelected = popupSelected;
+    }
+    print(`Loading ${item.name}...`);
+    beginRightPaneLoad(item.name, item.uri);
+    renderPanes();
+
+    const artistHeader = {
+        kind: "header",
+        id: `header:artist:${item.uri}`,
+        name: item.name,
+        uri: null,
+        section: "artist",
+    };
+    let albums = [];
+    let previewed = false;
+    const applyRows = () => {
+        if (seq !== paneSearchEnrichSeq) return;
+        paneDrilledDown = true;
+        const keepUri = paneLeftItems[popupSelected]?.uri || "";
+        paneLeftItems = [artistHeader, ...albums];
+        const idx = paneLeftItems.findIndex((row) => row.kind !== "header" && row.uri === keepUri);
+        popupSelected = idx >= 0 ? idx : albums.length ? 1 : 0;
+        renderPanes();
+        focusPane("left");
+        if (!previewed) {
+            const first = paneLeftItems.find((row) => row.kind !== "header" && row.uri);
+            if (first?.uri) {
+                previewed = true;
+                loadHomeItemIntoPane(first, { play: false, focusRight: true, silent: true });
+            }
+        }
+    };
+
+    try {
+        albums = await collectArtistAlbums(item.uri, (next) => {
+            if (seq !== paneSearchEnrichSeq) return;
+            albums = next;
+            applyRows();
+        });
+        if (seq !== paneSearchEnrichSeq) return;
+        applyRows();
+        if (!albums.length) {
+            finishRightPaneLoad();
+            renderPanes();
+            print(`No albums for ${item.name}.`, "error");
+            return;
+        }
+        print(`${albums.length} album${albums.length === 1 ? "" : "s"} · ${item.name}`);
+    } catch (err) {
+        if (seq !== paneSearchEnrichSeq) return;
+        finishRightPaneLoad();
+        renderPanes();
+        print(`${item.name} error: ${err.message}`, "error");
+        console.error("SpoTUI artist albums error:", err);
+    }
+}
+
+function restoreSearchResults() {
+    clearTimeout(panePreviewTimer);
+    panePreviewTimer = null;
+    paneLoadSeq += 1;
+    paneSearchEnrichSeq += 1;
+    if (paneSearchRootItems.length) {
+        paneLeftItems = paneSearchRootItems;
+        popupSelected = Math.min(
+            paneSearchRootSelected,
+            Math.max(paneLeftItems.length - 1, 0)
+        );
+        paneSearchRootItems = [];
+        paneSearchRootSelected = 0;
+    }
+    paneDrilledDown = false;
+    popupTracks = [];
+    popupTrackSelected = 0;
+    popupTrackTitle = "";
+    popupTrackContext = null;
+    paneRightLoaded = false;
+    paneRightLoading = false;
+    renderPanes();
+    focusPane("left");
+    scheduleSearchPreview();
+}
+
+function handleSearchPaneEscape() {
+    if (paneSearchRootItems.length) {
+        restoreSearchResults();
+        return true;
+    }
+    if (paneDrilledDown) {
+        clearPaneRight();
+        return true;
+    }
+    clearSearchCaches();
+    return false;
+}
+
+async function loadSearchItemIntoPane(item, { play = false, focusRight = true, silent = false } = {}) {
+    if (!item || item.kind === "header" || !item.uri) return;
+
+    if (item.type === "track" || String(item.uri).includes(":track:")) {
+        const track = {
+            uri: item.uri,
+            name: item.name,
+            artist: item.artist || item.subtitle || "",
+        };
+        popupTrackTitle = item.name;
+        popupTracks = [track];
+        popupTrackSelected = 0;
+        popupTrackContext = null;
+        finishRightPaneLoad();
+        renderPanes();
+        if (play) {
+            playerPlayUri(track.uri);
+            print("Playing: " + formatTrackLabel(track));
+            if (focusRight) focusPane("right");
+        }
+        return;
+    }
+
+    if (item.type === "artist" || String(item.uri).includes(":artist:")) {
+        if (play) {
+            await enterArtistDiscography(item);
+            return;
+        }
+        await loadArtistTopTracksIntoPane(item, { silent });
+        return;
+    }
+
+    await loadHomeItemIntoPane(item, { play, focusRight, silent });
+}
+
+function showCachedAlbumPreview(item) {
+    const cached = albumTracksCache.get(item.uri);
+    popupTrackTitle = item.name;
+    popupTrackContext = { uri: item.uri };
+    if (cached?.length) {
+        applyPaneTracks(item, cached);
+    } else {
+        beginRightPaneLoad(item.name, item.uri);
+    }
+    renderPanes();
+}
+
+function scheduleSearchPreview() {
+    if (paneMode !== "search") return;
+    clearTimeout(panePreviewTimer);
+    const item = paneLeftItems[popupSelected];
+    if (!item || item.kind === "header" || !item.uri) {
+        popupTrackTitle = item?.name || "";
+        popupTracks = [];
+        popupTrackSelected = 0;
+        popupTrackContext = null;
+        paneRightLoaded = false;
+        paneRightLoading = false;
+        renderPanes();
+        return;
+    }
+
+    if (item.type === "track" || String(item.uri).includes(":track:")) {
+        loadSearchItemIntoPane(item, { play: false, focusRight: false, silent: true });
+        return;
+    }
+
+    if (item.type === "artist" || String(item.uri).includes(":artist:")) {
+        loadSearchItemIntoPane(item, { play: false, focusRight: false, silent: true });
+        return;
+    }
+
+    if (
+        item.type === "album" ||
+        item.type === "playlist" ||
+        String(item.uri).includes(":album:") ||
+        String(item.uri).includes(":playlist:")
+    ) {
+        if (item.type === "album" || String(item.uri).includes(":album:")) {
+            showCachedAlbumPreview(item);
+            if (albumTracksCache.get(item.uri)?.length) return;
+        } else {
+            beginRightPaneLoad(item.name, item.uri);
+            renderPanes();
+        }
+        panePreviewTimer = setTimeout(() => {
+            loadSearchItemIntoPane(item, { play: false, focusRight: false, silent: true });
+        }, 180);
+        return;
+    }
+
+    beginRightPaneLoad(item.name, item.uri);
+    renderPanes();
+
+    panePreviewTimer = setTimeout(() => {
+        loadSearchItemIntoPane(item, { play: false, focusRight: false, silent: true });
+    }, 80);
 }
 
 async function openHomePanes(focusId = "") {
@@ -5807,23 +6924,36 @@ async function openPlaylistPopup() {
 
 async function fetchPlaylistItems(contextUri) {
     const items = [];
-    let offset = 0;
 
-    while (offset < PLAYLIST_MAX_TRACKS) {
-        const res = await Spicetify.Platform.PlaylistAPI.getContents(contextUri, {
-            limit: PLAYLIST_PAGE_SIZE,
-            offset,
-        });
-        const page = res?.items || [];
-        items.push(...page);
+    if (Spicetify.Platform?.PlaylistAPI?.getContents) {
+        try {
+            let offset = 0;
+            while (offset < PLAYLIST_MAX_TRACKS) {
+                const res = await Spicetify.Platform.PlaylistAPI.getContents(contextUri, {
+                    limit: PLAYLIST_PAGE_SIZE,
+                    offset,
+                });
+                const page = res?.items || [];
+                items.push(...page);
 
-        const total = res?.totalLength ?? res?.unfilteredTotalLength;
-        offset += page.length;
-        if (page.length < PLAYLIST_PAGE_SIZE) break;
-        if (typeof total === "number" && offset >= total) break;
+                const total = res?.totalLength ?? res?.unfilteredTotalLength;
+                offset += page.length;
+                if (page.length < PLAYLIST_PAGE_SIZE) break;
+                if (typeof total === "number" && offset >= total) break;
+            }
+            if (items.length) return items;
+        } catch (err) {
+            console.warn("SpoTUI PlaylistAPI.getContents failed:", err);
+        }
     }
 
-    return items;
+    const id = String(contextUri || "").split(":").pop();
+    if (!id) return items;
+    const res = await spotifyWebApiRequest(
+        "GET",
+        `/playlists/${encodeURIComponent(id)}/tracks?limit=100${marketQuery()}`
+    );
+    return coerceList(res?.items);
 }
 
 function schedulePlaylistPreview() {
@@ -5832,11 +6962,7 @@ function schedulePlaylistPreview() {
     const playlist = paneLeftItems[popupSelected];
     if (!playlist?.uri) return;
 
-    popupTrackTitle = playlist.name;
-    popupTracks = [];
-    popupTrackSelected = 0;
-    popupTrackContext = { uri: playlist.uri };
-    paneRightLoaded = true;
+    beginRightPaneLoad(playlist.name, playlist.uri);
     renderPanes();
 
     panePreviewTimer = setTimeout(() => {
@@ -5846,37 +6972,10 @@ function schedulePlaylistPreview() {
 
 async function loadPlaylistTracksIntoPane(playlist, { play = false, focusRight = true, silent = false } = {}) {
     if (!playlist?.uri) return;
-    const seq = ++paneLoadSeq;
-    if (!silent) print(`Loading ${playlist.name}...`);
-    try {
-        const items = await fetchPlaylistItems(playlist.uri);
-        if (seq !== paneLoadSeq) return;
-
-        popupTracks = dedupeTracks(
-            items
-                .filter((item) => item && item.uri && item.isPlayable !== false)
-                .map((item, index) => normalizeTrackItem(item, index))
-        );
-        popupTrackTitle = playlist.name;
-        popupTrackContext = { uri: playlist.uri };
-        lastPlaylistContextUri = playlist.uri;
-        const currentTrackUri = Spicetify.Player.data?.item?.uri;
-        popupTrackSelected = Math.max(findTrackIndexByUri(popupTracks, currentTrackUri), 0);
-        paneRightLoaded = true;
-        if (play || focusRight) paneDrilledDown = true;
-
-        if (play) {
-            playerPlayUri(playlist.uri);
-            print("Playing playlist: " + playlist.name);
-        }
-
-        renderPanes();
-        if (focusRight) focusPane("right");
-    } catch (err) {
-        if (seq !== paneLoadSeq) return;
-        print("List error: " + err.message, "error");
-        console.error("Playlist tracks pane error:", err);
-    }
+    await loadHomeItemIntoPane(
+        { ...playlist, type: playlist.type || "playlist" },
+        { play, focusRight, silent }
+    );
 }
 
 function queueSelectedPaneTrack() {
@@ -5924,7 +7023,7 @@ async function openPlaylistTracksPopup() {
         lastPlaylistContextUri = contextUri;
         const currentTrackUri = Spicetify.Player.data?.item?.uri;
         popupTrackSelected = Math.max(findTrackIndexByUri(popupTracks, currentTrackUri), 0);
-        paneRightLoaded = true;
+        finishRightPaneLoad();
         openPanes("browse", "right");
     } catch (err) {
         print("List error: " + err.message, "error");
@@ -5982,7 +7081,7 @@ function refreshQueuePanes() {
         },
     ];
     popupSelected = 0;
-    paneRightLoaded = true;
+    finishRightPaneLoad();
     renderPanes();
 }
 
@@ -6028,15 +7127,25 @@ function openPanes(mode, focus = "left") {
 }
 
 function closePanes() {
+    if (paneMode === "search") clearSearchCaches();
     clearTimeout(panePreviewTimer);
     panePreviewTimer = null;
     paneLoadSeq += 1;
     paneMode = null;
     paneFocus = "left";
     paneRightLoaded = false;
+    paneRightLoading = false;
     paneDrilledDown = false;
     paneLeftItems = [];
     paneSearchQuery = "";
+    paneSearchRootItems = [];
+    paneSearchRootSelected = 0;
+    paneSearchArtists = [];
+    paneSearchTracks = [];
+    paneSearchScope = "all";
+    paneSearchEnrichSeq += 1;
+    clearTimeout(paneSearchEnrichTimer);
+    paneSearchEnrichTimer = null;
     popupTracks = [];
     popupTrackSelected = 0;
     popupTrackTitle = "";
@@ -6054,6 +7163,7 @@ function clearPaneRight() {
     popupTrackTitle = "";
     popupTrackContext = null;
     paneRightLoaded = false;
+    paneRightLoading = false;
     paneDrilledDown = false;
     renderPanes();
     focusPane("left");
@@ -6087,6 +7197,7 @@ function fillPaneList(listEl, items, selected, formatter, emptyText) {
             const text = formatter(item, idx);
             if (row.textContent !== text) row.textContent = text;
             row.classList.toggle("selected", idx === selected);
+            row.classList.toggle("is-header", item?.kind === "header");
         });
         return;
     }
@@ -6094,7 +7205,10 @@ function fillPaneList(listEl, items, selected, formatter, emptyText) {
     const frag = document.createDocumentFragment();
     items.forEach((item, idx) => {
         const row = document.createElement("div");
-        row.className = "spotui-pane-row" + (idx === selected ? " selected" : "");
+        row.className =
+            "spotui-pane-row" +
+            (idx === selected ? " selected" : "") +
+            (item?.kind === "header" ? " is-header" : "");
         row.textContent = formatter(item, idx);
         frag.appendChild(row);
     });
@@ -6134,12 +7248,13 @@ function renderPanes() {
             "No playlists found."
         );
     } else if (paneMode === "search") {
-        leftTitle.textContent = "Search \u2014 a queue \u00b7 l like track \u00b7 Esc close";
+        leftTitle.textContent =
+            `${paneSearchScope === "all" ? "Search" : `Search ${searchScopeLabel(paneSearchScope)}`} \u2014 \u2191/\u2193 preview \u00b7 Enter open \u00b7 a queue \u00b7 l like \u00b7 Esc`;
         fillPaneList(
             leftList,
             paneLeftItems,
             popupSelected,
-            (item) => item.name,
+            (item, idx) => formatHomeLeftLabel(item, idx),
             paneSearchQuery ? `No results for "${paneSearchQuery}".` : "No search."
         );
     } else if (paneMode === "queue") {
@@ -6163,7 +7278,10 @@ function renderPanes() {
         );
     }
 
-    if (paneRightLoaded && popupTracks.length) {
+    if (paneRightLoading) {
+        rightTitle.textContent = `${popupTrackTitle || "Tracks"} \u2014 loading...`;
+        fillPaneList(rightList, [], 0, () => "", "Loading tracks...");
+    } else if (popupTracks.length) {
         rightTitle.textContent =
             `${popupTrackTitle || "Tracks"} \u2014 \u2191/\u2193 \u00b7 Enter play \u00b7 a queue \u00b7 l like`;
         fillPaneList(
@@ -6174,8 +7292,8 @@ function renderPanes() {
             "No tracks found."
         );
     } else if (paneRightLoaded) {
-        rightTitle.textContent = `${popupTrackTitle || "Tracks"} \u2014 loading...`;
-        fillPaneList(rightList, [], 0, () => "", "Loading tracks...");
+        rightTitle.textContent = `${popupTrackTitle || "Tracks"} \u2014 empty`;
+        fillPaneList(rightList, [], 0, () => "", "No tracks found.");
     } else {
         rightTitle.textContent = "Tracks";
         fillPaneList(
@@ -6185,7 +7303,9 @@ function renderPanes() {
             () => "",
             paneMode === "home"
                 ? "Pick a playlist on the left."
-                : "Move through playlists to preview tracks."
+                : paneMode === "search"
+                  ? "Pick a mix, album, or track on the left."
+                  : "Move through playlists to preview tracks."
         );
     }
 
@@ -6227,6 +7347,7 @@ async function handlePaneKeydown(e) {
 
     if (e.key === "Escape") {
         e.preventDefault();
+        if (paneMode === "search" && handleSearchPaneEscape()) return;
         if ((paneMode === "browse" || paneMode === "home") && paneDrilledDown) {
             clearPaneRight();
             return;
@@ -6262,20 +7383,28 @@ async function handlePaneKeydown(e) {
             let next = popupSelected;
             for (let step = 0; step < paneLeftItems.length; step += 1) {
                 next = (next + delta + paneLeftItems.length) % paneLeftItems.length;
-                if (paneMode !== "home" || paneLeftItems[next]?.kind !== "header") break;
+                if (
+                    (paneMode !== "home" && paneMode !== "search") ||
+                    paneLeftItems[next]?.kind !== "header"
+                ) {
+                    break;
+                }
             }
             popupSelected = next;
             selectPaneRow("left", popupSelected);
             if (paneMode === "browse") schedulePlaylistPreview();
             if (paneMode === "home") scheduleHomePreview();
+            if (paneMode === "search") scheduleSearchPreview();
             return;
         }
 
         if (e.key === "Enter") {
             e.preventDefault();
-            if (paneMode === "home") {
+            if (paneMode === "home" || paneMode === "search") {
                 clearTimeout(panePreviewTimer);
                 const item = paneLeftItems[popupSelected];
+                const openItem =
+                    paneMode === "search" ? loadSearchItemIntoPane : loadHomeItemIntoPane;
                 if (item?.kind === "header") {
                     const next = paneLeftItems.findIndex(
                         (row, index) => index > popupSelected && row.kind !== "header" && row.uri
@@ -6283,14 +7412,14 @@ async function handlePaneKeydown(e) {
                     if (next >= 0) {
                         popupSelected = next;
                         renderPanes();
-                        await loadHomeItemIntoPane(paneLeftItems[popupSelected], {
+                        await openItem(paneLeftItems[popupSelected], {
                             play: true,
                             focusRight: true,
                         });
                     }
                     return;
                 }
-                if (item) await loadHomeItemIntoPane(item, { play: true, focusRight: true });
+                if (item) await openItem(item, { play: true, focusRight: true });
                 return;
             }
             if (paneMode !== "browse") {
@@ -6330,6 +7459,11 @@ async function handlePaneKeydown(e) {
     }
 }
 
+function mountPopup() {
+    const host = document.getElementById("spotui-tui") || document.body;
+    host.appendChild(popup);
+}
+
 function closePopup() {
     if (popup) {
         popup.remove();
@@ -6356,13 +7490,13 @@ function renderPopup() {
 
     if (popupMode === "new") {
         popup.innerHTML = `<div class="popup-title">New playlist name &mdash; Enter confirm &middot; Esc cancel</div><input id="popup-input" class="popup-input">`;
-        document.body.appendChild(popup);
+        mountPopup();
         const inputEl = popup.querySelector("#popup-input");
         inputEl.focus();
         inputEl.addEventListener("keydown", handleNewKeydown);
     } else if (popupMode === "themes") {
         popup.innerHTML = `<div class="popup-title">Theme &mdash; &uarr;/&darr; preview &middot; Enter keep &middot; c customize &middot; a follow Spicetify &middot; Esc cancel</div><div id="popup-list"></div>`;
-        document.body.appendChild(popup);
+        mountPopup();
         const listEl = popup.querySelector("#popup-list");
         getAllSchemes().forEach((scheme, idx) => {
             const row = document.createElement("div");
@@ -6387,7 +7521,7 @@ function renderPopup() {
             ? `Custom color &mdash; type #hex or r g b &middot; Enter apply &middot; Esc back`
             : `Custom theme &mdash; &uarr;/&darr; select &middot; Enter edit &middot; s save &middot; r reset &middot; Esc cancel`;
         popup.innerHTML = `<div class="popup-title">${title}</div><div id="popup-list"></div>`;
-        document.body.appendChild(popup);
+        mountPopup();
         const listEl = popup.querySelector("#popup-list");
         const draft = popupCustomDraft || readCustomScheme();
 
@@ -6471,7 +7605,7 @@ function renderPopup() {
             ? `Custom font &mdash; type an installed font name &middot; Enter apply &middot; Esc back`
             : `Font &mdash; arrows preview &middot; Enter choose &middot; Esc back`;
         popup.innerHTML = `<div class="popup-title">${title}</div>`;
-        document.body.appendChild(popup);
+        mountPopup();
 
         if (popupFontCustomEditing) {
             const input = document.createElement("input");
@@ -6521,7 +7655,7 @@ function renderPopup() {
         titleEl.className = "popup-title";
         titleEl.textContent = title;
         popup.prepend(titleEl);
-        document.body.appendChild(popup);
+        mountPopup();
 
         const listEl = popup.querySelector("#popup-list");
         const rows = category
@@ -6589,7 +7723,7 @@ function renderPopup() {
 
         actions.append(updateBtn, laterBtn);
         popup.appendChild(actions);
-        document.body.appendChild(popup);
+        mountPopup();
         popup.addEventListener("keydown", handleUpdateKeydown);
         updateBtn.focus();
     }
